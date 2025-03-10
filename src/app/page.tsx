@@ -1,95 +1,38 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+import { FeaturesSection } from "@/components/feature-section";
+import Navbar from "@/components/navbar";
+import { CTASection } from "@/components/cta-section";
+import Footer from "@/components/footer";
+import PriceSection from "@/components/price-section";
+import { HoverBorderGradient } from "@/components/ui/hover-border-gradient";
 
 export default function Home() {
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>src/app/page.tsx</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="container max-w-7xl mx-auto">
+      <Navbar />
+      <CTASection />
+      <div className="py-20 mx-auto text-center">
+        <hgroup>
+          <h2 className="text-base/7 font-semibold text-black dark:text-white">Transforma tu forma de trabajar</h2>
+          <p className="mt-2 text-balance text-2xl font-semibold tracking-tight text-black dark:text-white sm:text-5xl">
+            Genera, gestiona y firma documentos legales con IA.
+          </p>
+        </hgroup>
+        <p className="mx-auto mt-6 max-w-xl text-pretty text-lg/8 text-black dark:text-white">
+          Ahorra tiempo y evita errores en la redacción de contratos y otros documentos legales con nuestra plataforma automatizada.
+        </p>
+        <div className="mt-8 flex justify-center">
+          <HoverBorderGradient
+            containerClassName="rounded-md"
+            as="button"
+            className="dark:bg-black bg-white text-black dark:text-white flex items-center space-x-2"
           >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
+            <span>Comenzar aquí</span>
+          </HoverBorderGradient>
         </div>
-      </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
+      <FeaturesSection />
+      <PriceSection />
+      <Footer />
     </div>
   );
 }
