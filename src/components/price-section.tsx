@@ -62,7 +62,7 @@ export default function PriceSection() {
             Un plan para cada necesidad
           </p>
         </div>
-        <p className="mx-auto mt-6 max-w-2xl text-pretty text-center text-lg font-medium text-black dark:text-white sm:text-xl/8">
+        <p className="text-sm lg:text-base max-w-2xl my-4 mx-auto text-neutral-500 text-center font-normal dark:text-neutral-300">
           Elige el plan que mejor se adapte a tu negocio y optimiza la gestión de tus documentos legales con IA.
         </p>
         <div className="isolate mx-auto mt-16 grid max-w-md grid-cols-1 gap-y-8 sm:mt-20 lg:mx-0 lg:max-w-none lg:grid-cols-3">

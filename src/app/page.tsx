@@ -17,7 +17,7 @@ export default function Home() {
             Genera, gestiona y firma documentos legales con IA.
           </p>
         </hgroup>
-        <p className="mx-auto mt-6 max-w-xl text-pretty text-lg/8 text-black dark:text-white">
+        <p className="text-sm lg:text-base max-w-2xl my-4 mx-auto text-neutral-500 text-center font-normal dark:text-neutral-300">
           Ahorra tiempo y evita errores en la redacción de contratos y otros documentos legales con nuestra plataforma automatizada.
         </p>
         <div className="mt-8 flex justify-center">
