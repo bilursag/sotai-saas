@@ -3,7 +3,7 @@ import Navbar from "@/components/navbar";
 import { CTASection } from "@/components/cta-section";
 import Footer from "@/components/footer";
 import PriceSection from "@/components/price-section";
-import { HoverBorderGradient } from "@/components/ui/hover-border-gradient";
+import { Button } from "@/components/ui/button";
 
 export default function Home() {
   return (
@@ -21,13 +21,9 @@ export default function Home() {
           Ahorra tiempo y evita errores en la redacción de contratos y otros documentos legales con nuestra plataforma automatizada.
         </p>
         <div className="mt-8 flex justify-center">
-          <HoverBorderGradient
-            containerClassName="rounded-md"
-            as="button"
-            className="dark:bg-black bg-white text-black dark:text-white flex items-center space-x-2"
-          >
-            <span>Comenzar aquí</span>
-          </HoverBorderGradient>
+          <Button>
+            Comienza ahora
+          </Button>
         </div>
       </div>
       <FeaturesSection />
