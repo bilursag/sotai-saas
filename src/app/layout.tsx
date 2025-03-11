@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { ThemeProvider } from "@/components/theme-provider"
+import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
+import { ClerkProvider } from "@clerk/nextjs";
 
 export const metadata: Metadata = {
   title: "Sotai Docs",
@@ -17,11 +18,13 @@ export default function RootLayout({
       <body>
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="dark"
           enableSystem
           disableTransitionOnChange
-        >
-          {children}
+          >
+          <ClerkProvider>
+            {children}
+          </ClerkProvider>
         </ThemeProvider>
       </body>
     </html>
