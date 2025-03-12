@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   PlusCircle,
   FileText,
@@ -9,6 +10,10 @@ import {
   Filter,
   ArrowDownUp,
   Info,
+  Search,
+  Eye,
+  Edit,
+  Trash2,
 } from "lucide-react";
 import {
   Card,
@@ -32,36 +37,55 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
-// Datos de ejemplo para los documentos recientes
 const recentDocuments = [
   {
-    id: 1,
+    id: "doc-1",
     title: "Contrato de arrendamiento",
     type: "Inmobiliario",
     date: "10 Mar 2025",
     status: "Completado",
+    pages: 3,
+    lastEdited: "hace 2 días",
+    aiGenerated: true,
   },
   {
-    id: 2,
+    id: "doc-2",
     title: "Acuerdo de confidencialidad",
     type: "Corporativo",
     date: "8 Mar 2025",
     status: "En revisión",
+    pages: 2,
+    lastEdited: "hace 3 días",
+    aiGenerated: false,
   },
   {
-    id: 3,
+    id: "doc-3",
     title: "Testamento",
     type: "Familiar",
     date: "5 Mar 2025",
     status: "Borrador",
+    pages: 7,
+    lastEdited: "hace 5 días",
+    aiGenerated: false,
   },
   {
-    id: 4,
+    id: "doc-4",
     title: "Contrato de servicios",
     type: "Comercial",
     date: "3 Mar 2025",
     status: "Completado",
+    pages: 4,
+    lastEdited: "hace 7 días",
+    aiGenerated: true,
   },
 ];
 
@@ -94,7 +118,11 @@ const stats = [
 ];
 
 export default function Dashboard() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("documentos");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -109,6 +137,47 @@ export default function Dashboard() {
     }
   };
 
+  const filteredDocuments = recentDocuments.filter(
+    (doc) =>
+      doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      doc.type.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleCreateDocument = () => {
+    router.push("/documents?view=new");
+  };
+
+  const handleViewDocument = (id: string) => {
+    router.push(`/documents?view=details&id=${id}`);
+  };
+
+  const handleEditDocument = (id: string) => {
+    router.push(`/documents?view=edit&id=${id}`);
+  };
+
+  const handleDeleteConfirmation = (id: string) => {
+    setDocumentToDelete(id);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteDocument = () => {
+    console.log("Eliminando documento:", documentToDelete);
+    setShowDeleteDialog(false);
+    setDocumentToDelete(null);
+  };
+
+  const handleViewAllTemplates = () => {
+    router.push("/templates");
+  };
+
+  const handleViewAllDocuments = () => {
+    router.push("/documents?view=list");
+  };
+
+  const handleUseTemplate = (templateId: number) => {
+    router.push(`/documents?view=new&templateId=${templateId}`);
+  };
+
   return (
     <div className="container mx-auto max-w-7xl p-4 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -118,11 +187,15 @@ export default function Dashboard() {
             Gestiona y crea documentos legales con IA
           </p>
         </div>
-        <Button className="flex items-center gap-2">
+        <Button
+          className="flex items-center gap-2"
+          onClick={handleCreateDocument}
+        >
           <PlusCircle className="size-4" />
           <span>Nuevo documento</span>
         </Button>
       </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {stats.map((stat, index) => (
           <Card key={index}>
@@ -140,6 +213,7 @@ export default function Dashboard() {
           </Card>
         ))}
       </div>
+
       <Tabs
         defaultValue="documentos"
         value={activeTab}
@@ -162,10 +236,15 @@ export default function Dashboard() {
             </TabsTrigger>
           </TabsList>
           <div className="hidden sm:flex items-center gap-2">
-            <Input
-              placeholder="Buscar..."
-              className="max-w-xs"
-            />
+            <div className="relative max-w-xs">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar..."
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon">
@@ -196,46 +275,116 @@ export default function Dashboard() {
             </DropdownMenu>
           </div>
         </div>
+
         <TabsContent value="documentos" className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Documentos recientes</h2>
-            <Button variant="ghost" className="text-sm">
+            <Button
+              variant="ghost"
+              className="text-sm"
+              onClick={handleViewAllDocuments}
+            >
               Ver todos
             </Button>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {recentDocuments.map((doc) => (
-              <Card key={doc.id} className="flex flex-col h-full">
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-lg">{doc.title}</CardTitle>
-                      <CardDescription>
-                        {doc.type} • {doc.date}
-                      </CardDescription>
+            {filteredDocuments.length === 0 ? (
+              <div className="col-span-2 bg-muted/30 rounded-lg p-8 text-center">
+                <FileText className="size-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">
+                  No se encontraron documentos
+                </h3>
+                <p className="text-muted-foreground">
+                  Intenta con otros términos de búsqueda o crea un nuevo
+                  documento.
+                </p>
+                <Button onClick={handleCreateDocument} className="mt-4">
+                  Crear nuevo documento
+                </Button>
+              </div>
+            ) : (
+              filteredDocuments.map((doc) => (
+                <Card key={doc.id} className="flex flex-col h-full">
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-lg">{doc.title}</CardTitle>
+                        <CardDescription>
+                          {doc.type} • {doc.date}
+                        </CardDescription>
+                      </div>
+                      <Badge className={getStatusColor(doc.status)}>
+                        {doc.status}
+                      </Badge>
                     </div>
-                    <Badge className={getStatusColor(doc.status)}>
-                      {doc.status}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <FileText className="size-4" />
-                    <span>3 páginas • Última edición: hace 2 días</span>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex gap-2 pt-2 border-t">
-                  <Button variant="outline" size="sm" className="flex-1">
-                    Previsualizar
-                  </Button>
-                  <Button size="sm" className="flex-1">
-                    Editar
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
+                  </CardHeader>
+                  <CardContent className="flex-grow">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <FileText className="size-4" />
+                        <span>
+                          {doc.pages} páginas • Última edición: {doc.lastEdited}
+                        </span>
+                      </div>
+                      {doc.aiGenerated && (
+                        <Badge
+                          variant="outline"
+                          className="bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 border-purple-200 dark:border-purple-800"
+                        >
+                          IA
+                        </Badge>
+                      )}
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex gap-2 pt-2 border-t">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="flex-1">
+                          Opciones
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => handleViewDocument(doc.id)}
+                        >
+                          <Eye className="size-4 mr-2" />
+                          Ver documento
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleEditDocument(doc.id)}
+                        >
+                          <Edit className="size-4 mr-2" />
+                          Editar documento
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => handleDeleteConfirmation(doc.id)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="size-4 mr-2" />
+                          Eliminar documento
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => handleViewDocument(doc.id)}
+                    >
+                      Ver
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => handleEditDocument(doc.id)}
+                    >
+                      Editar
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))
+            )}
           </div>
 
           <div className="mt-8">
@@ -272,10 +421,15 @@ export default function Dashboard() {
             </div>
           </div>
         </TabsContent>
+
         <TabsContent value="plantillas" className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Plantillas populares</h2>
-            <Button variant="ghost" className="text-sm">
+            <Button
+              variant="ghost"
+              className="text-sm"
+              onClick={handleViewAllTemplates}
+            >
               Ver todas
             </Button>
           </div>
@@ -299,7 +453,11 @@ export default function Dashboard() {
                   </p>
                 </CardContent>
                 <CardFooter className="pt-2 border-t">
-                  <Button size="sm" className="w-full">
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={() => handleUseTemplate(template.id)}
+                  >
                     Usar plantilla
                   </Button>
                 </CardFooter>
@@ -322,6 +480,9 @@ export default function Dashboard() {
                 <Card
                   key={category}
                   className="hover:bg-muted/50 transition-colors cursor-pointer"
+                  onClick={() =>
+                    router.push(`/templates?category=${category.toLowerCase()}`)
+                  }
                 >
                   <CardHeader>
                     <CardTitle className="text-lg">{category}</CardTitle>
@@ -337,6 +498,7 @@ export default function Dashboard() {
             </div>
           </div>
         </TabsContent>
+
         <TabsContent value="historial">
           <Card>
             <CardHeader>
@@ -359,8 +521,15 @@ export default function Dashboard() {
                     </Avatar>
                     <div className="space-y-1">
                       <p className="text-sm font-medium">
-                        {i % 2 === 0 ? "Has editado" : "La IA ha generado"}
-                        {recentDocuments[i % 4].title}
+                        {i % 2 === 0 ? "Has editado " : "La IA ha generado "}
+                        <span
+                          className="text-primary underline cursor-pointer"
+                          onClick={() =>
+                            handleViewDocument(recentDocuments[i % 4].id)
+                          }
+                        >
+                          {recentDocuments[i % 4].title}
+                        </span>
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {i === 0
@@ -390,6 +559,29 @@ export default function Dashboard() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirmar eliminación</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas eliminar este documento? Esta acción
+              no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex space-x-2 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+            >
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteDocument}>
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

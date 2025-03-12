@@ -1,4 +1,3 @@
-// src/components/documents/DocumentCard.tsx
 "use client";
 
 import { 
@@ -50,7 +49,6 @@ interface DocumentCardProps {
 }
 
 export function DocumentCard({ document, onView, onEdit, onDelete }: DocumentCardProps) {
-  // Función para determinar el color del badge de estado
   const getStatusColor = (status: string) => {
     switch(status) {
       case "Completado": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
@@ -60,7 +58,6 @@ export function DocumentCard({ document, onView, onEdit, onDelete }: DocumentCar
     }
   };
 
-  // Formatear la fecha
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("es-ES", {
