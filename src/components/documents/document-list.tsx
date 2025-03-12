@@ -1,17 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +21,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -35,92 +40,39 @@ import {
 import {
   Search,
   Filter,
+  MoreVertical,
   FileText,
   Trash2,
   Edit,
   Eye,
+  Download,
+  Copy,
   ListFilter,
+  Loader2,
 } from "lucide-react";
-import { DocumentCard } from "./document-card";
 
-const documents = [
-  {
-    id: "doc-1",
-    title: "Contrato de arrendamiento",
-    type: "Inmobiliario",
-    status: "Completado",
-    createdAt: "2025-03-10T14:30:00",
-    updatedAt: "2025-03-11T09:15:00",
-    pages: 4,
-    tags: ["Alquiler", "Residencial"],
-    aiGenerated: true,
-  },
-  {
-    id: "doc-2",
-    title: "Acuerdo de confidencialidad",
-    type: "Corporativo",
-    status: "En revisión",
-    createdAt: "2025-03-08T11:20:00",
-    updatedAt: "2025-03-09T16:45:00",
-    pages: 2,
-    tags: ["NDA", "Empresa"],
-    aiGenerated: true,
-  },
-  {
-    id: "doc-3",
-    title: "Testamento",
-    type: "Familiar",
-    status: "Borrador",
-    createdAt: "2025-03-05T09:10:00",
-    updatedAt: "2025-03-05T09:10:00",
-    pages: 7,
-    tags: ["Personal", "Herencia"],
-    aiGenerated: false,
-  },
-  {
-    id: "doc-4",
-    title: "Contrato de servicios",
-    type: "Comercial",
-    status: "Completado",
-    createdAt: "2025-03-03T15:40:00",
-    updatedAt: "2025-03-04T10:30:00",
-    pages: 5,
-    tags: ["Servicios", "Consultoría"],
-    aiGenerated: true,
-  },
-  {
-    id: "doc-5",
-    title: "Demanda civil",
-    type: "Litigios",
-    status: "En revisión",
-    createdAt: "2025-03-01T13:15:00",
-    updatedAt: "2025-03-02T14:20:00",
-    pages: 12,
-    tags: ["Judicial", "Demanda"],
-    aiGenerated: false,
-  },
-  {
-    id: "doc-6",
-    title: "Reglamento interno",
-    type: "Laboral",
-    status: "Completado",
-    createdAt: "2025-02-28T10:05:00",
-    updatedAt: "2025-03-01T11:30:00",
-    pages: 8,
-    tags: ["Empresa", "Normativa"],
-    aiGenerated: true,
-  },
-];
+import { getAllDocuments, deleteDocument } from "@/services/document-service";
 
 interface DocumentsListProps {
   onViewDetails: (id: string) => void;
   onEditDocument: (id: string) => void;
 }
 
+interface Document {
+  id: string;
+  title: string;
+  type: string;
+  status: string;
+  updatedAt: string;
+  tags: { id: string; name: string }[];
+  aiGenerated?: boolean;
+}
+
 export function DocumentsList({
   onViewDetails,
   onEditDocument,
 }: DocumentsListProps) {
+  const router = useRouter();
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<string>("");
@@ -128,29 +80,93 @@ export function DocumentsList({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
 
-  const filteredDocuments = documents.filter((doc) => {
-    const matchesSearch =
-      doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.tags.some((tag) =>
-        tag.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    const matchesType = selectedType ? doc.type === selectedType : true;
-    const matchesStatus = selectedStatus ? doc.status === selectedStatus : true;
+  // Nuevos estados para manejar la interacción con el backend
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-    return matchesSearch && matchesType && matchesStatus;
-  });
+  // Cargar los documentos del backend cuando el componente se monte
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      try {
+        setIsLoading(true);
+        const data = await getAllDocuments();
+        setDocuments(data);
+        setError(null);
+      } catch (err) {
+        console.error("Error al cargar documentos:", err);
+        setError("No se pudieron cargar los documentos");
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const handleDelete = (docId: string) => {
+    fetchDocuments();
+  }, []);
+
+  // Obtener colores del estado del documento
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "completado":
+      case "Completado":
+        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
+      case "en_revision":
+      case "En revisión":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
+      case "borrador":
+      case "Borrador":
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  // Preparar para eliminar un documento
+  const handleDeleteConfirmation = (docId: string) => {
     setDocumentToDelete(docId);
     setShowDeleteDialog(true);
   };
 
-  const confirmDelete = () => {
-    console.log("Eliminar documento:", documentToDelete);
-    setShowDeleteDialog(false);
-    setDocumentToDelete(null);
+  // Eliminar un documento
+  const handleDeleteDocument = async () => {
+    if (!documentToDelete) return;
+
+    try {
+      setIsDeleting(true);
+      await deleteDocument(documentToDelete);
+
+      // Actualizar el estado local eliminando el documento
+      setDocuments(documents.filter((doc) => doc.id !== documentToDelete));
+
+      setShowDeleteDialog(false);
+      setDocumentToDelete(null);
+    } catch (err) {
+      console.error("Error al eliminar documento:", err);
+      setError("No se pudo eliminar el documento");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
+  // Filtrar documentos basados en búsqueda y filtros
+  const filteredDocuments = documents.filter((doc) => {
+    const matchesSearch =
+      doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      doc.tags.some((tag: { id: string; name: string }) =>
+        tag.name.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    const matchesType = selectedType
+      ? doc.type.toLowerCase() === selectedType.toLowerCase()
+      : true;
+    const matchesStatus = selectedStatus
+      ? doc.status.toLowerCase() === selectedStatus.toLowerCase()
+      : true;
+
+    return matchesSearch && matchesType && matchesStatus;
+  });
+
+  // Obtener tipos y estados únicos para los filtros
   const uniqueTypes = Array.from(new Set(documents.map((doc) => doc.type)));
   const uniqueStatuses = Array.from(
     new Set(documents.map((doc) => doc.status))
@@ -158,6 +174,7 @@ export function DocumentsList({
 
   return (
     <div className="space-y-4">
+      {/* Filtros y búsqueda */}
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between bg-muted/40 p-4 rounded-lg">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -196,6 +213,7 @@ export function DocumentsList({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -217,11 +235,13 @@ export function DocumentsList({
                   key={status}
                   onClick={() => setSelectedStatus(status)}
                 >
-                  {status}
+                  {status.charAt(0).toUpperCase() +
+                    status.slice(1).replace("_", " ")}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+
           <div className="flex border rounded-md overflow-hidden">
             <Button
               variant={viewMode === "grid" ? "default" : "ghost"}
@@ -266,32 +286,165 @@ export function DocumentsList({
           </div>
         </div>
       </div>
-      {filteredDocuments.length === 0 ? (
+
+      {/* Estado de carga */}
+      {isLoading ? (
+        <div className="bg-muted/30 rounded-lg p-8 text-center">
+          <Loader2 className="size-12 mx-auto text-primary animate-spin mb-4" />
+          <h3 className="text-lg font-medium mb-2">Cargando documentos</h3>
+          <p className="text-muted-foreground">
+            Estamos obteniendo tus documentos, espera un momento...
+          </p>
+        </div>
+      ) : error ? (
+        <div className="bg-destructive/10 rounded-lg p-8 text-center">
+          <Trash2 className="size-12 mx-auto text-destructive mb-4" />
+          <h3 className="text-lg font-medium mb-2">
+            Error al cargar documentos
+          </h3>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()}>
+            Intentar de nuevo
+          </Button>
+        </div>
+      ) : filteredDocuments.length === 0 ? (
         <div className="bg-muted/30 rounded-lg p-8 text-center">
           <FileText className="size-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-lg font-medium mb-2">
             No se encontraron documentos
           </h3>
           <p className="text-muted-foreground">
-            Intenta con otros términos de búsqueda o elimina los filtros
-            aplicados.
+            {searchQuery || selectedType || selectedStatus
+              ? "Intenta con otros términos de búsqueda o elimina los filtros aplicados."
+              : "Aún no tienes documentos. Crea uno nuevo para comenzar."}
           </p>
+          {!searchQuery && !selectedType && !selectedStatus && (
+            <Button
+              onClick={() => router.push("/documents?view=new")}
+              className="mt-4"
+            >
+              Crear nuevo documento
+            </Button>
+          )}
         </div>
       ) : (
         <>
+          {/* Vista de cuadrícula */}
           {viewMode === "grid" && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredDocuments.map((doc) => (
-                <DocumentCard
-                  key={doc.id}
-                  document={doc}
-                  onView={() => onViewDetails(doc.id)}
-                  onEdit={() => onEditDocument(doc.id)}
-                  onDelete={() => handleDelete(doc.id)}
-                />
+                <Card key={doc.id} className="flex flex-col h-full">
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-lg">{doc.title}</CardTitle>
+                        <CardDescription>
+                          {doc.type} •{" "}
+                          {new Date(doc.updatedAt).toLocaleDateString()}
+                        </CardDescription>
+                      </div>
+                      <Badge className={getStatusColor(doc.status)}>
+                        {doc.status.charAt(0).toUpperCase() +
+                          doc.status.slice(1).replace("_", " ")}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-grow">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <FileText className="size-4" />
+                        <span>
+                          Última edición:{" "}
+                          {new Date(doc.updatedAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      {doc.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {doc.tags.map((tag: { id: string; name: string }) => (
+                            <Badge
+                              key={tag.id}
+                              variant="outline"
+                              className="text-xs"
+                            >
+                              {tag.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                      {doc.aiGenerated && (
+                        <Badge
+                          variant="outline"
+                          className="w-fit mt-1 bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 border-purple-200 dark:border-purple-800"
+                        >
+                          IA
+                        </Badge>
+                      )}
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex gap-2 pt-2 border-t">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => onViewDetails(doc.id)}
+                    >
+                      Ver
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => onEditDocument(doc.id)}
+                    >
+                      Editar
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="size-8"
+                        >
+                          <MoreVertical className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Opciones</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => onViewDetails(doc.id)}>
+                          <Eye className="size-4 mr-2" />
+                          Ver documento
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => onEditDocument(doc.id)}
+                        >
+                          <Edit className="size-4 mr-2" />
+                          Editar documento
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Download className="size-4 mr-2" />
+                          Descargar PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Copy className="size-4 mr-2" />
+                          Duplicar
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => handleDeleteConfirmation(doc.id)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="size-4 mr-2" />
+                          Eliminar documento
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </CardFooter>
+                </Card>
               ))}
             </div>
           )}
+
+          {/* Vista de tabla */}
           {viewMode === "table" && (
             <Card>
               <CardContent className="p-0">
@@ -321,16 +474,9 @@ export function DocumentsList({
                         </TableCell>
                         <TableCell>{doc.type}</TableCell>
                         <TableCell>
-                          <Badge
-                            className={
-                              doc.status === "Completado"
-                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-                                : doc.status === "En revisión"
-                                ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
-                                : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
-                            }
-                          >
-                            {doc.status}
+                          <Badge className={getStatusColor(doc.status)}>
+                            {doc.status.charAt(0).toUpperCase() +
+                              doc.status.slice(1).replace("_", " ")}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -361,7 +507,7 @@ export function DocumentsList({
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDelete(doc.id)}
+                              onClick={() => handleDeleteConfirmation(doc.id)}
                               title="Eliminar documento"
                             >
                               <Trash2 className="size-4 text-destructive" />
@@ -377,6 +523,8 @@ export function DocumentsList({
           )}
         </>
       )}
+
+      {/* Diálogo de confirmación para eliminar */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -390,11 +538,23 @@ export function DocumentsList({
             <Button
               variant="outline"
               onClick={() => setShowDeleteDialog(false)}
+              disabled={isDeleting}
             >
               Cancelar
             </Button>
-            <Button variant="destructive" onClick={confirmDelete}>
-              Eliminar
+            <Button
+              variant="destructive"
+              onClick={handleDeleteDocument}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="size-4 mr-2 animate-spin" />
+                  <span>Eliminando...</span>
+                </>
+              ) : (
+                "Eliminar"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

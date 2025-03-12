@@ -1,7 +1,8 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+// src/components/documents/DocumentForm.tsx
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -30,13 +31,22 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { X, Wand2, Loader2, AlertCircle } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useRouter } from "next/navigation";
 
+// Servicios para interactuar con el backend
+import {
+  getDocument,
+  createDocument,
+  updateDocument,
+} from "@/services/document-service";
+import { getTemplate } from "@/services/template-service";
+import { generateContent } from "@/services/ai-service";
+
+// Datos de documentos disponibles
 const documentTypes = [
   { value: "inmobiliario", label: "Inmobiliario" },
   { value: "corporativo", label: "Corporativo" },
@@ -46,59 +56,7 @@ const documentTypes = [
   { value: "litigios", label: "Litigios" },
 ];
 
-const getDocumentById = (id: string) => {
-  return {
-    id: "doc-1",
-    title: "Contrato de arrendamiento",
-    description:
-      "Contrato de arrendamiento para propiedad residencial ubicada en Madrid",
-    type: "inmobiliario",
-    content:
-      "Este contrato de arrendamiento se celebra el día [FECHA] entre [ARRENDADOR] y [ARRENDATARIO]...",
-    status: "borrador",
-    tags: ["Alquiler", "Residencial"],
-  };
-};
-
-const getTemplateById = (id: number) => {
-  const templates = {
-    1: {
-      id: 1,
-      title: "Contrato de trabajo",
-      category: "Laboral",
-      content:
-        "CONTRATO DE TRABAJO\n\nEn [CIUDAD], a [FECHA], entre [EMPRESA], representada por don/doña [NOMBRE], y don/doña [TRABAJADOR], se ha convenido el siguiente contrato de trabajo...",
-      tags: ["Laboral", "Contrato"],
-    },
-    2: {
-      id: 2,
-      title: "NDA estándar",
-      category: "Corporativo",
-      content:
-        'ACUERDO DE CONFIDENCIALIDAD\n\nEntre [PARTE 1] y [PARTE 2], en adelante denominadas "las partes"...',
-      tags: ["Confidencialidad", "NDA"],
-    },
-    3: {
-      id: 3,
-      title: "Contrato de compraventa",
-      category: "Inmobiliario",
-      content:
-        "CONTRATO DE COMPRAVENTA\n\nEn [CIUDAD], a [FECHA], de una parte [VENDEDOR], y de otra parte [COMPRADOR], convienen en celebrar el presente contrato de compraventa...",
-      tags: ["Inmobiliario", "Compraventa"],
-    },
-    4: {
-      id: 4,
-      title: "Reclamación administrativa",
-      category: "Administrativo",
-      content:
-        "RECLAMACIÓN ADMINISTRATIVA\n\nA LA ADMINISTRACIÓN [NOMBRE DE LA ADMINISTRACIÓN]\n\nD./Dña. [NOMBRE], mayor de edad, con DNI nº [NÚMERO], y domicilio en [DIRECCIÓN], por medio del presente escrito formula RECLAMACIÓN ADMINISTRATIVA...",
-      tags: ["Administrativo", "Reclamación"],
-    },
-  };
-
-  return templates[id as keyof typeof templates];
-};
-
+// Esquema de validación Zod
 const formSchema = z.object({
   title: z.string().min(5, {
     message: "El título debe tener al menos 5 caracteres",
@@ -129,10 +87,13 @@ export function DocumentForm({ id, isEditing, templateId }: DocumentFormProps) {
   const [isAiAssisted, setIsAiAssisted] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [aiPrompt, setAiPrompt] = useState("");
   const [showAiPrompt, setShowAiPrompt] = useState(false);
   const [isTemplateLoaded, setIsTemplateLoaded] = useState(false);
 
+  // Configurar el formulario
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -144,50 +105,86 @@ export function DocumentForm({ id, isEditing, templateId }: DocumentFormProps) {
     },
   });
 
+  // Cargar datos si estamos editando o usando una plantilla
   useEffect(() => {
-    if (isEditing && id) {
-      const document = getDocumentById(id);
-      form.reset({
-        title: document.title,
-        description: document.description,
-        type: document.type,
-        content: document.content,
-        status: document.status as "borrador" | "en_revision" | "completado",
-      });
-      setTags(document.tags);
-    } else if (templateId && !isTemplateLoaded) {
-      const template = getTemplateById(templateId);
-      if (template) {
-        form.reset({
-          title: `Nuevo documento basado en ${template.title}`,
-          description: "",
-          type: template.category.toLowerCase(),
-          content: template.content || "",
-          status: "borrador",
-        });
-        if (template.tags && template.tags.length > 0) {
-          setTags(template.tags);
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+
+        if (isEditing && id) {
+          // Cargar documento existente para edición
+          const documentData = await getDocument(id);
+          form.reset({
+            title: documentData.title,
+            description: documentData.description || "",
+            type: documentData.type,
+            content: documentData.content,
+            status: documentData.status,
+          });
+
+          if (documentData.tags && documentData.tags.length > 0) {
+            setTags(documentData.tags.map((tag: { name: string }) => tag.name));
+          }
+
+          setIsAiAssisted(documentData.aiGenerated);
+        } else if (templateId && !isTemplateLoaded) {
+          // Cargar datos de la plantilla
+          const templateData = await getTemplate(templateId.toString());
+
+          if (templateData) {
+            form.reset({
+              title: `Nuevo documento basado en ${templateData.title}`,
+              description: "",
+              type: templateData.category.toLowerCase(),
+              content: templateData.content || "",
+              status: "borrador",
+            });
+
+            if (templateData.tags && templateData.tags.length > 0) {
+              setTags(templateData.tags.map((tag: { name: string }) => tag.name));
+            }
+
+            setIsTemplateLoaded(true);
+            setIsAiAssisted(true);
+          }
         }
-        setIsTemplateLoaded(true);
-        setIsAiAssisted(true);
+      } catch (err) {
+        console.error("Error al cargar datos:", err);
+        setError("No se pudieron cargar los datos del documento");
+      } finally {
+        setIsLoading(false);
       }
-    }
-  }, [isEditing, id, templateId, form, isTemplateLoaded]);
-
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    setIsSaving(true);
-
-    const formData = {
-      ...values,
-      tags,
-      isAiAssisted,
     };
 
-    console.log("Formulario enviado:", formData);
-    setTimeout(() => {
-      setIsSaving(false);
+    loadData();
+  }, [isEditing, id, templateId, form, isTemplateLoaded]);
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      setIsSaving(true);
+      setError(null);
+
+      const documentData = {
+        ...values,
+        tags,
+        aiGenerated: isAiAssisted,
+      };
+
+      if (isEditing && id) {
+        // Actualizar documento existente
+        await updateDocument(id, documentData);
+      } else {
+        // Crear nuevo documento
+        await createDocument(documentData);
+      }
+
       router.push("/documents?view=list");
-    }, 1500);
+    } catch (err) {
+      console.error("Error al guardar documento:", err);
+      setError("Ocurrió un error al guardar el documento");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleAddTag = () => {
@@ -208,68 +205,33 @@ export function DocumentForm({ id, isEditing, templateId }: DocumentFormProps) {
     }
   };
 
-  const handleAiPromptSubmit = () => {
+  const handleAiPromptSubmit = async () => {
     if (!aiPrompt.trim()) return;
 
-    setIsGenerating(true);
+    try {
+      setIsGenerating(true);
+      setError(null);
 
-    console.log("Generando con IA utilizando prompt:", aiPrompt);
-
-    setTimeout(() => {
       const documentType = form.getValues("type");
-      let generatedContent = "";
 
-      if (documentType === "inmobiliario") {
-        generatedContent = `Este contrato de arrendamiento se celebra el día [FECHA] entre [ARRENDADOR] y [ARRENDATARIO]...
+      // Llamar a la API de IA
+      const result = await generateContent(aiPrompt, documentType);
 
-CLÁUSULA PRIMERA: OBJETO DEL CONTRATO
-El ARRENDADOR da en arrendamiento al ARRENDATARIO, quien a su vez lo recibe en tal calidad, el inmueble ubicado en [DIRECCIÓN COMPLETA], con una superficie de [SUPERFICIE] metros cuadrados.
-
-CLÁUSULA SEGUNDA: DURACIÓN DEL CONTRATO
-El plazo de duración del presente contrato es de [DURACIÓN] años, contados a partir de la fecha de firma del mismo.
-
-CLÁUSULA TERCERA: RENTA
-El ARRENDATARIO se obliga a pagar al ARRENDADOR, en concepto de renta mensual, la cantidad de [IMPORTE] euros, que deberá ser abonada dentro de los primeros cinco días de cada mes.
-
-CLÁUSULA CUARTA: FIANZA
-A la firma del presente contrato, el ARRENDATARIO entrega al ARRENDADOR la cantidad de [IMPORTE] euros, equivalente a [NÚMERO] mensualidades de renta, en concepto de fianza.`;
-      } else if (documentType === "laboral") {
-        generatedContent = `CONTRATO DE TRABAJO
-
-En [CIUDAD], a [FECHA], entre [NOMBRE EMPRESA], RUT [RUT EMPRESA], representada por don/doña [NOMBRE REPRESENTANTE], en adelante "el empleador", y don/doña [NOMBRE TRABAJADOR], RUT [RUT TRABAJADOR], en adelante "el trabajador", se ha convenido el siguiente contrato de trabajo:
-
-PRIMERO: El trabajador se compromete y obliga a prestar servicios como [CARGO] en las dependencias de [UBICACIÓN], pudiendo ser trasladado a otros lugares de trabajo, según las necesidades de la empresa.
-
-SEGUNDO: La jornada de trabajo será de [N° HORAS] horas semanales distribuidas de [DÍA] a [DÍA], de [HORA INICIO] a [HORA TÉRMINO] horas, con un descanso de [TIEMPO] para colación.
-
-TERCERO: El empleador pagará al trabajador una remuneración mensual de [MONTO] por mes calendario.`;
+      if (result && result.content) {
+        form.setValue("content", result.content);
+        setIsAiAssisted(true);
       } else {
-        generatedContent = `DOCUMENTO LEGAL
-
-Este documento se crea el día [FECHA] entre las partes [PARTE 1] y [PARTE 2].
-
-PRIMERA SECCIÓN: DEFINICIONES
-A efectos de este documento, los siguientes términos tendrán los significados que a continuación se indican:
-- Término 1: [Definición]
-- Término 2: [Definición]
-
-SEGUNDA SECCIÓN: OBJETO
-El presente documento tiene por objeto [DESCRIBIR OBJETO DEL DOCUMENTO]
-
-TERCERA SECCIÓN: CONDICIONES
-Las partes acuerdan las siguientes condiciones:
-1. [Condición 1]
-2. [Condición 2]
-3. [Condición 3]`;
+        throw new Error("No se recibió contenido generado");
       }
 
-      // Actualizar el formulario con el contenido generado
-      form.setValue("content", generatedContent);
-      setIsAiAssisted(true);
-      setIsGenerating(false);
       setShowAiPrompt(false);
       setAiPrompt("");
-    }, 2000);
+    } catch (err) {
+      console.error("Error al generar contenido con IA:", err);
+      setError("No se pudo generar el contenido con IA");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleAiAssist = () => {
@@ -277,9 +239,11 @@ Las partes acuerdan las siguientes condiciones:
   };
 
   const handleCancel = () => {
+    // Navegar de vuelta a la lista de documentos
     router.push("/documents?view=list");
   };
 
+  // Sugerir etiquetas basadas en el contenido
   const suggestTags = () => {
     const content = form.getValues("content").toLowerCase();
     const suggestions = [];
@@ -296,12 +260,27 @@ Las partes acuerdan las siguientes condiciones:
     if (content.includes("compraventa")) suggestions.push("Compraventa");
     if (content.includes("confidencial")) suggestions.push("Confidencialidad");
 
+    // Añadir las sugerencias que no existan ya como etiquetas
     suggestions.forEach((tag) => {
       if (!tags.includes(tag)) {
         setTags((prev) => [...prev, tag]);
       }
     });
   };
+
+  // Mostrar loader mientras se cargan los datos
+  if (isLoading) {
+    return (
+      <Card className="mb-6">
+        <CardContent className="flex flex-col items-center justify-center p-8">
+          <Loader2 className="size-12 text-primary animate-spin mb-4" />
+          <p className="text-muted-foreground">
+            Cargando datos del documento...
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="mb-6">
@@ -322,9 +301,17 @@ Las partes acuerdan las siguientes condiciones:
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="size-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Título del documento */}
               <FormField
                 control={form.control}
                 name="title"
@@ -341,6 +328,8 @@ Las partes acuerdan las siguientes condiciones:
                   </FormItem>
                 )}
               />
+
+              {/* Tipo de documento */}
               <FormField
                 control={form.control}
                 name="type"
@@ -369,6 +358,8 @@ Las partes acuerdan las siguientes condiciones:
                 )}
               />
             </div>
+
+            {/* Descripción */}
             <FormField
               control={form.control}
               name="description"
@@ -386,6 +377,8 @@ Las partes acuerdan las siguientes condiciones:
                 </FormItem>
               )}
             />
+
+            {/* Etiquetas */}
             <div className="space-y-2">
               <FormLabel>Etiquetas</FormLabel>
               <div className="flex gap-2">
@@ -429,6 +422,8 @@ Las partes acuerdan las siguientes condiciones:
                 </div>
               )}
             </div>
+
+            {/* Contenido del documento */}
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <FormLabel>Contenido del documento</FormLabel>
@@ -453,6 +448,8 @@ Las partes acuerdan las siguientes condiciones:
                   )}
                 </Button>
               </div>
+
+              {/* Área para proporcionar un prompt a la IA */}
               {showAiPrompt && (
                 <div className="mb-4 space-y-3">
                   <Alert
@@ -499,6 +496,7 @@ Las partes acuerdan las siguientes condiciones:
                   </div>
                 </div>
               )}
+
               <Tabs
                 value={activeTab}
                 onValueChange={setActiveTab}
@@ -537,6 +535,7 @@ Las partes acuerdan las siguientes condiciones:
                   </div>
                 </TabsContent>
               </Tabs>
+
               {isAiAssisted && (
                 <div className="flex items-center gap-2 mt-2">
                   <Badge
@@ -552,6 +551,8 @@ Las partes acuerdan las siguientes condiciones:
                 </div>
               )}
             </div>
+
+            {/* Estado del documento */}
             <FormField
               control={form.control}
               name="status"
@@ -580,11 +581,18 @@ Las partes acuerdan las siguientes condiciones:
                 </FormItem>
               )}
             />
+
+            {/* Botones de acción */}
             <div className="flex justify-end gap-3">
-              <Button type="button" variant="outline" onClick={handleCancel}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancel}
+                disabled={isSaving}
+              >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSaving}>
+              <Button type="submit" disabled={isSaving || isLoading}>
                 {isSaving ? (
                   <>
                     <Loader2 className="size-4 mr-2 animate-spin" />

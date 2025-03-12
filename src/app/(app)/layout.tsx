@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { currentUser } from "@clerk/nextjs/server";
 import { ThemeProvider } from "@/components/theme-provider";
 import DashboardNavbar from "@/components/dashboard/navbar";
+import { SyncUser } from "@/components/auth/sync-user";
 
 export const metadata = {
   title: "Sotai - Documentos legales con IA",
@@ -21,16 +22,18 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="min-h-screen">
-      <ThemeProvider
-        attribute="class"
-        defaultTheme="system"
-        enableSystem
-        disableTransitionOnChange
-      >
-        <DashboardNavbar />
-        <main className="pt-16">{children}</main>
-      </ThemeProvider>
-    </div>
+    <SyncUser>
+      <div className="min-h-screen">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <DashboardNavbar />
+          <main className="pt-16">{children}</main>
+        </ThemeProvider>
+      </div>
+    </SyncUser>
   );
 }
