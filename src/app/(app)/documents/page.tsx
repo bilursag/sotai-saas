@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { DocumentsList } from "@/components/documents/document-list";
 import { DocumentForm } from "@/components/documents/document-form";
-import { DocumentDetails } from "@/components/documents/document-details";
+import { DocumentViewEdit } from "@/components/documents/document-view-edit";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 
@@ -63,13 +63,11 @@ export default function DocumentsPage() {
         />
       )}
 
-      {(view === "new" || view === "edit") && (
-        <DocumentForm id={id} isEditing={view === "edit"} />
-      )}
+      {view === "new" && <DocumentForm id={null} isEditing={false} />}
 
-      {view === "details" && id && (
-        <DocumentDetails id={id} onEdit={() => handleEditDocument(id)} />
-      )}
+      {view === "edit" && id && <DocumentViewEdit id={id} />}
+
+      {view === "details" && id && <DocumentViewEdit id={id} readOnly={true} />}
     </div>
   );
 }
