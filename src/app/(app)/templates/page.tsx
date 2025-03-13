@@ -1,6 +1,7 @@
+// src/app/templates/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,97 +14,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, FolderOpen, ArrowLeft } from "lucide-react";
+import { Search, FolderOpen, ArrowLeft, Loader2 } from "lucide-react";
+import { getAllTemplates } from "@/services/template-service";
 
-const allTemplates = [
-  {
-    id: 1,
-    title: "Contrato de trabajo",
-    category: "Laboral",
-    usageCount: 1245,
-    description:
-      "Plantilla estándar para contratos laborales según la legislación vigente",
-  },
-  {
-    id: 2,
-    title: "NDA estándar",
-    category: "Corporativo",
-    usageCount: 987,
-    description:
-      "Acuerdo de confidencialidad para proteger información sensible",
-  },
-  {
-    id: 3,
-    title: "Contrato de compraventa",
-    category: "Inmobiliario",
-    usageCount: 856,
-    description: "Contrato para la compraventa de bienes inmuebles",
-  },
-  {
-    id: 4,
-    title: "Reclamación administrativa",
-    category: "Administrativo",
-    usageCount: 742,
-    description:
-      "Documento para presentar reclamaciones ante la administración pública",
-  },
-  {
-    id: 5,
-    title: "Contrato de alquiler",
-    category: "Inmobiliario",
-    usageCount: 689,
-    description: "Contrato de arrendamiento para viviendas residenciales",
-  },
-  {
-    id: 6,
-    title: "Testamento",
-    category: "Familiar",
-    usageCount: 578,
-    description: "Modelo de testamento abierto según el código civil",
-  },
-  {
-    id: 7,
-    title: "Divorcio de mutuo acuerdo",
-    category: "Familiar",
-    usageCount: 523,
-    description: "Convenio regulador para divorcios de mutuo acuerdo",
-  },
-  {
-    id: 8,
-    title: "Contrato de servicios",
-    category: "Comercial",
-    usageCount: 456,
-    description: "Contrato para la prestación de servicios profesionales",
-  },
-  {
-    id: 9,
-    title: "Reclamación de deuda",
-    category: "Comercial",
-    usageCount: 412,
-    description: "Documento para la reclamación formal de deudas pendientes",
-  },
-  {
-    id: 10,
-    title: "Contrato mercantil",
-    category: "Corporativo",
-    usageCount: 387,
-    description: "Contrato para relaciones comerciales entre empresas",
-  },
-  {
-    id: 11,
-    title: "Política de privacidad",
-    category: "Corporativo",
-    usageCount: 354,
-    description: "Documento de política de privacidad y protección de datos",
-  },
-  {
-    id: 12,
-    title: "Reglamento interno",
-    category: "Laboral",
-    usageCount: 321,
-    description: "Reglamento interno de funcionamiento para empresas",
-  },
-];
+interface Template {
+  id: string;
+  title: string;
+  description?: string;
+  category: string;
+  usageCount: number;
+  tags?: { id: string; name: string }[];
+}
 
 export default function TemplatesPage() {
   const router = useRouter();
@@ -112,22 +33,46 @@ export default function TemplatesPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredTemplates = allTemplates.filter((template) => {
-    const matchesCategory = categoryParam
-      ? template.category.toLowerCase() === categoryParam.toLowerCase()
-      : true;
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    const matchesSearch =
+  // Cargar las plantillas desde el backend cuando el componente se monte
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        setIsLoading(true);
+        const data = await getAllTemplates(categoryParam || undefined);
+        setTemplates(data);
+        setError(null);
+      } catch (err) {
+        console.error("Error al cargar plantillas:", err);
+        setError("No se pudieron cargar las plantillas");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTemplates();
+  }, [categoryParam]);
+
+  // Filtrar plantillas basadas en búsqueda
+  const filteredTemplates = templates.filter((template) => {
+    return (
       template.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      template.description.toLowerCase().includes(searchQuery.toLowerCase());
-
-    return matchesCategory && matchesSearch;
+      template.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      template.tags?.some((tag: { id: string; name: string }) =>
+        tag.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    );
   });
 
-  const handleUseTemplate = (templateId: number) => {
+  // Función para usar una plantilla
+  const handleUseTemplate = (templateId: string) => {
     router.push(`/documents?view=new&templateId=${templateId}`);
   };
 
+  // Función para volver al dashboard
   const handleBackToDashboard = () => {
     router.push("/dashboard");
   };
@@ -182,15 +127,52 @@ export default function TemplatesPage() {
         </div>
       )}
 
-      {filteredTemplates.length === 0 ? (
+      {isLoading ? (
+        <div className="bg-muted/30 rounded-lg p-8 text-center">
+          <Loader2 className="size-12 mx-auto text-primary animate-spin mb-4" />
+          <h3 className="text-lg font-medium mb-2">Cargando plantillas</h3>
+          <p className="text-muted-foreground">
+            Estamos obteniendo las plantillas disponibles, espera un momento...
+          </p>
+        </div>
+      ) : error ? (
+        <div className="bg-destructive/10 rounded-lg p-8 text-center">
+          <div className="text-destructive mb-4">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="size-12 mx-auto"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium mb-2">
+            Error al cargar plantillas
+          </h3>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()}>
+            Intentar de nuevo
+          </Button>
+        </div>
+      ) : filteredTemplates.length === 0 ? (
         <div className="bg-muted/30 rounded-lg p-8 text-center">
           <FolderOpen className="size-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-lg font-medium mb-2">
             No se encontraron plantillas
           </h3>
           <p className="text-muted-foreground">
-            Intenta con otros términos de búsqueda o elimina los filtros
-            aplicados.
+            {searchQuery
+              ? "Intenta con otros términos de búsqueda"
+              : categoryParam
+              ? `No hay plantillas disponibles para la categoría "${categoryParam}"`
+              : "No hay plantillas disponibles en este momento"}
           </p>
         </div>
       ) : (
@@ -208,6 +190,19 @@ export default function TemplatesPage() {
                 <CardDescription>{template.description}</CardDescription>
               </CardHeader>
               <CardContent className="flex-grow">
+                {template.tags && template.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {template.tags.map((tag: { id: string; name: string }) => (
+                      <Badge
+                        key={tag.id}
+                        variant="secondary"
+                        className="text-xs"
+                      >
+                        {tag.name}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </CardContent>
               <CardFooter className="pt-2 border-t">
                 <Button

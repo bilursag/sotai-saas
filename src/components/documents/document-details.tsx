@@ -54,19 +54,20 @@ const getDocumentById = (id: string) => {
     description:
       "Contrato de arrendamiento para propiedad residencial ubicada en Madrid",
     type: "Inmobiliario",
-    content: `Este contrato de arrendamiento se celebra el día [FECHA] entre [ARRENDADOR] y [ARRENDATARIO]...
+    content: 
+      `Este contrato de arrendamiento se celebra el día [FECHA] entre [ARRENDADOR] y [ARRENDATARIO]...
 
-CLÁUSULA PRIMERA: OBJETO DEL CONTRATO
-El ARRENDADOR da en arrendamiento al ARRENDATARIO, quien a su vez lo recibe en tal calidad, el inmueble ubicado en [DIRECCIÓN COMPLETA], con una superficie de [SUPERFICIE] metros cuadrados.
+        CLÁUSULA PRIMERA: OBJETO DEL CONTRATO
+        El ARRENDADOR da en arrendamiento al ARRENDATARIO, quien a su vez lo recibe en tal calidad, el inmueble ubicado en [DIRECCIÓN COMPLETA], con una superficie de [SUPERFICIE] metros cuadrados.
 
-CLÁUSULA SEGUNDA: DURACIÓN DEL CONTRATO
-El plazo de duración del presente contrato es de [DURACIÓN] años, contados a partir de la fecha de firma del mismo.
+        CLÁUSULA SEGUNDA: DURACIÓN DEL CONTRATO
+        El plazo de duración del presente contrato es de [DURACIÓN] años, contados a partir de la fecha de firma del mismo.
 
-CLÁUSULA TERCERA: RENTA
-El ARRENDATARIO se obliga a pagar al ARRENDADOR, en concepto de renta mensual, la cantidad de [IMPORTE] euros, que deberá ser abonada dentro de los primeros cinco días de cada mes.
+        CLÁUSULA TERCERA: RENTA
+        El ARRENDATARIO se obliga a pagar al ARRENDADOR, en concepto de renta mensual, la cantidad de [IMPORTE] pesos, que deberá ser abonada dentro de los primeros cinco días de cada mes.
 
-CLÁUSULA CUARTA: FIANZA
-A la firma del presente contrato, el ARRENDATARIO entrega al ARRENDADOR la cantidad de [IMPORTE] euros, equivalente a [NÚMERO] mensualidades de renta, en concepto de fianza.`,
+        CLÁUSULA CUARTA: FIANZA
+        A la firma del presente contrato, el ARRENDATARIO entrega al ARRENDADOR la cantidad de [IMPORTE] pesos, equivalente a [NÚMERO] mensualidades de renta, en concepto de fianza.`,
     status: "Completado",
     createdAt: "2025-03-10T14:30:00",
     updatedAt: "2025-03-11T09:15:00",

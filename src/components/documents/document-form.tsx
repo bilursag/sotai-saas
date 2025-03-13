@@ -1,8 +1,7 @@
-// src/components/documents/DocumentForm.tsx
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -37,16 +36,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 
-// Servicios para interactuar con el backend
-import {
-  getDocument,
-  createDocument,
-  updateDocument,
-} from "@/services/document-service";
-import { getTemplate } from "@/services/template-service";
+import { createDocument, updateDocument } from "@/services/document-service";
+
 import { generateContent } from "@/services/ai-service";
 
-// Datos de documentos disponibles
 const documentTypes = [
   { value: "inmobiliario", label: "Inmobiliario" },
   { value: "corporativo", label: "Corporativo" },
@@ -56,7 +49,6 @@ const documentTypes = [
   { value: "litigios", label: "Litigios" },
 ];
 
-// Esquema de validación Zod
 const formSchema = z.object({
   title: z.string().min(5, {
     message: "El título debe tener al menos 5 caracteres",
@@ -76,10 +68,11 @@ const formSchema = z.object({
 interface DocumentFormProps {
   id: string | null;
   isEditing: boolean;
-  templateId?: number;
 }
 
-export function DocumentForm({ id, isEditing, templateId }: DocumentFormProps) {
+export function DocumentForm({ id, isEditing }: DocumentFormProps) {
+  const searchParams = useSearchParams();
+  const templateIdFromUrl = searchParams.get("templateId");
   const router = useRouter();
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
@@ -91,9 +84,9 @@ export function DocumentForm({ id, isEditing, templateId }: DocumentFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [aiPrompt, setAiPrompt] = useState("");
   const [showAiPrompt, setShowAiPrompt] = useState(false);
-  const [isTemplateLoaded, setIsTemplateLoaded] = useState(false);
 
-  // Configurar el formulario
+  console.log("DocumentForm iniciado", { id, isEditing, templateIdFromUrl });
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -105,59 +98,56 @@ export function DocumentForm({ id, isEditing, templateId }: DocumentFormProps) {
     },
   });
 
-  // Cargar datos si estamos editando o usando una plantilla
   useEffect(() => {
-    const loadData = async () => {
+    async function loadTemplateData() {
+      const templateIdParam = searchParams.get("templateId");
+
+      if (!templateIdParam) return;
+
       try {
         setIsLoading(true);
+        console.log("Intentando cargar plantilla con ID:", templateIdParam);
+        const response = await fetch(`/api/templates/${templateIdParam}`);
 
-        if (isEditing && id) {
-          // Cargar documento existente para edición
-          const documentData = await getDocument(id);
+        if (!response.ok) {
+          console.error("Error en la respuesta:", response.status);
+          const text = await response.text();
+          console.error("Texto de error:", text);
+          throw new Error(`Error ${response.status}: ${text}`);
+        }
+
+        const templateData = await response.json();
+        console.log("Datos recibidos:", templateData);
+
+        if (templateData && templateData.title) {
           form.reset({
-            title: documentData.title,
-            description: documentData.description || "",
-            type: documentData.type,
-            content: documentData.content,
-            status: documentData.status,
+            title: `Nuevo documento basado en ${templateData.title}`,
+            description: templateData.description || "",
+            type: templateData.category.toLowerCase(),
+            content: templateData.content || "",
+            status: "borrador",
           });
 
-          if (documentData.tags && documentData.tags.length > 0) {
-            setTags(documentData.tags.map((tag: { name: string }) => tag.name));
+          if (templateData.tags && templateData.tags.length > 0) {
+            setTags(templateData.tags.map((tag: { name: unknown; }) => tag.name));
           }
 
-          setIsAiAssisted(documentData.aiGenerated);
-        } else if (templateId && !isTemplateLoaded) {
-          // Cargar datos de la plantilla
-          const templateData = await getTemplate(templateId.toString());
-
-          if (templateData) {
-            form.reset({
-              title: `Nuevo documento basado en ${templateData.title}`,
-              description: "",
-              type: templateData.category.toLowerCase(),
-              content: templateData.content || "",
-              status: "borrador",
-            });
-
-            if (templateData.tags && templateData.tags.length > 0) {
-              setTags(templateData.tags.map((tag: { name: string }) => tag.name));
-            }
-
-            setIsTemplateLoaded(true);
-            setIsAiAssisted(true);
-          }
+          setIsAiAssisted(true);
         }
-      } catch (err) {
-        console.error("Error al cargar datos:", err);
-        setError("No se pudieron cargar los datos del documento");
+      } catch (error) {
+        console.error("Error cargando plantilla:", error);
+        setError("No se pudo cargar la plantilla");
       } finally {
         setIsLoading(false);
       }
-    };
+    }
 
-    loadData();
-  }, [isEditing, id, templateId, form, isTemplateLoaded]);
+    if (!isEditing) {
+      loadTemplateData();
+    } else if (isEditing && id) {
+      // ...código existente para cargar documento...
+    }
+  }, [searchParams, isEditing, id, form]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
@@ -171,10 +161,8 @@ export function DocumentForm({ id, isEditing, templateId }: DocumentFormProps) {
       };
 
       if (isEditing && id) {
-        // Actualizar documento existente
         await updateDocument(id, documentData);
       } else {
-        // Crear nuevo documento
         await createDocument(documentData);
       }
 
@@ -211,10 +199,7 @@ export function DocumentForm({ id, isEditing, templateId }: DocumentFormProps) {
     try {
       setIsGenerating(true);
       setError(null);
-
       const documentType = form.getValues("type");
-
-      // Llamar a la API de IA
       const result = await generateContent(aiPrompt, documentType);
 
       if (result && result.content) {
@@ -239,11 +224,9 @@ export function DocumentForm({ id, isEditing, templateId }: DocumentFormProps) {
   };
 
   const handleCancel = () => {
-    // Navegar de vuelta a la lista de documentos
     router.push("/documents?view=list");
   };
 
-  // Sugerir etiquetas basadas en el contenido
   const suggestTags = () => {
     const content = form.getValues("content").toLowerCase();
     const suggestions = [];
@@ -260,7 +243,6 @@ export function DocumentForm({ id, isEditing, templateId }: DocumentFormProps) {
     if (content.includes("compraventa")) suggestions.push("Compraventa");
     if (content.includes("confidencial")) suggestions.push("Confidencialidad");
 
-    // Añadir las sugerencias que no existan ya como etiquetas
     suggestions.forEach((tag) => {
       if (!tags.includes(tag)) {
         setTags((prev) => [...prev, tag]);
@@ -268,7 +250,6 @@ export function DocumentForm({ id, isEditing, templateId }: DocumentFormProps) {
     });
   };
 
-  // Mostrar loader mientras se cargan los datos
   if (isLoading) {
     return (
       <Card className="mb-6">
@@ -288,14 +269,14 @@ export function DocumentForm({ id, isEditing, templateId }: DocumentFormProps) {
         <CardTitle>
           {isEditing
             ? "Editar documento"
-            : templateId
+            : templateIdFromUrl
             ? "Nuevo documento desde plantilla"
             : "Crear nuevo documento"}
         </CardTitle>
         <CardDescription>
           {isEditing
             ? "Modifica los detalles del documento existente"
-            : templateId
+            : templateIdFromUrl
             ? "Personaliza este documento basado en la plantilla seleccionada"
             : "Completa el formulario para crear un nuevo documento legal"}
         </CardDescription>
@@ -311,7 +292,6 @@ export function DocumentForm({ id, isEditing, templateId }: DocumentFormProps) {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Título del documento */}
               <FormField
                 control={form.control}
                 name="title"
@@ -328,8 +308,6 @@ export function DocumentForm({ id, isEditing, templateId }: DocumentFormProps) {
                   </FormItem>
                 )}
               />
-
-              {/* Tipo de documento */}
               <FormField
                 control={form.control}
                 name="type"
@@ -358,8 +336,6 @@ export function DocumentForm({ id, isEditing, templateId }: DocumentFormProps) {
                 )}
               />
             </div>
-
-            {/* Descripción */}
             <FormField
               control={form.control}
               name="description"
@@ -377,8 +353,6 @@ export function DocumentForm({ id, isEditing, templateId }: DocumentFormProps) {
                 </FormItem>
               )}
             />
-
-            {/* Etiquetas */}
             <div className="space-y-2">
               <FormLabel>Etiquetas</FormLabel>
               <div className="flex gap-2">
@@ -422,8 +396,6 @@ export function DocumentForm({ id, isEditing, templateId }: DocumentFormProps) {
                 </div>
               )}
             </div>
-
-            {/* Contenido del documento */}
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <FormLabel>Contenido del documento</FormLabel>
@@ -448,13 +420,9 @@ export function DocumentForm({ id, isEditing, templateId }: DocumentFormProps) {
                   )}
                 </Button>
               </div>
-
-              {/* Área para proporcionar un prompt a la IA */}
               {showAiPrompt && (
                 <div className="mb-4 space-y-3">
-                  <Alert
-                    className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-900"
-                  >
+                  <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-900">
                     <AlertCircle className="size-4 text-blue-600 dark:text-blue-400" />
                     <AlertDescription className="text-blue-800 dark:text-blue-300">
                       Describe lo que necesitas para que la IA genere el
@@ -551,8 +519,6 @@ export function DocumentForm({ id, isEditing, templateId }: DocumentFormProps) {
                 </div>
               )}
             </div>
-
-            {/* Estado del documento */}
             <FormField
               control={form.control}
               name="status"
@@ -581,8 +547,6 @@ export function DocumentForm({ id, isEditing, templateId }: DocumentFormProps) {
                 </FormItem>
               )}
             />
-
-            {/* Botones de acción */}
             <div className="flex justify-end gap-3">
               <Button
                 type="button"

@@ -1,4 +1,3 @@
-// src/app/api/users/sync/route.ts
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { PrismaClient } from "@prisma/client";
@@ -12,18 +11,13 @@ export async function POST() {
     if (!userId) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
-
-    // Obtener los detalles del usuario actual
     const user = await currentUser();
-
     if (!user) {
       return NextResponse.json(
         { error: "Usuario no encontrado" },
         { status: 404 }
       );
     }
-
-    // Obtener el correo electrónico principal
     const emailAddress = user.emailAddresses.find(
       (email) => email.id === user.primaryEmailAddressId
     )?.emailAddress;
@@ -34,8 +28,6 @@ export async function POST() {
         { status: 400 }
       );
     }
-
-    // Actualizar o crear el usuario en la base de datos
     const dbUser = await prisma.user.upsert({
       where: { clerkId: userId },
       update: {
