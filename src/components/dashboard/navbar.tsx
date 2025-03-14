@@ -36,7 +36,6 @@ import {
 } from "@/components/ui/tooltip";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 interface NavItem {
   name: string;
@@ -170,14 +169,6 @@ const DashboardNavbar = () => {
                         <item.icon className="h-4 w-4 mr-1" />
                         {item.name}
                         <ChevronDown className="h-4 w-4 ml-1" />
-                        {item.badge && (
-                          <Badge
-                            variant="outline"
-                            className="ml-1 bg-primary/10 text-primary text-xs"
-                          >
-                            {item.badge}
-                          </Badge>
-                        )}
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
@@ -207,14 +198,6 @@ const DashboardNavbar = () => {
                           >
                             <item.icon className="h-4 w-4 mr-1" />
                             {item.name}
-                            {item.badge && (
-                              <Badge
-                                variant="outline"
-                                className="ml-1 bg-primary/10 text-primary text-xs"
-                              >
-                                {item.badge}
-                              </Badge>
-                            )}
                           </Button>
                         </Link>
                       </TooltipTrigger>
@@ -305,14 +288,6 @@ const DashboardNavbar = () => {
                           <div className="flex items-center">
                             <item.icon className="h-5 w-5 mr-3" />
                             <span>{item.name}</span>
-                            {item.badge && (
-                              <Badge
-                                variant="outline"
-                                className="ml-2 bg-primary/10 text-primary text-xs"
-                              >
-                                {item.badge}
-                              </Badge>
-                            )}
                           </div>
                           <ChevronDown
                             className={`h-4 w-4 transition-transform ${
@@ -358,14 +333,6 @@ const DashboardNavbar = () => {
                       >
                         <item.icon className="h-5 w-5 mr-3" />
                         <span>{item.name}</span>
-                        {item.badge && (
-                          <Badge
-                            variant="outline"
-                            className="ml-2 bg-primary/10 text-primary text-xs"
-                          >
-                            {item.badge}
-                          </Badge>
-                        )}
                       </Link>
                     )}
                   </div>

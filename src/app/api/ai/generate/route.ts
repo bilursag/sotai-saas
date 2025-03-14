@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { OpenAI } from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
 export async function POST(request: Request) {
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     }
 
     let systemPrompt =
-      "Eres un asistente legal experto que ayuda a generar documentos legales precisos y profesionales. ";
+      "Eres un asistente legal experto que ayuda a generar documentos legales precisos y profesionales en español. ";
 
     if (documentType) {
       systemPrompt += `Especialízate en crear documentos de tipo ${documentType}. `;
@@ -38,21 +38,24 @@ export async function POST(request: Request) {
         "Genera un documento completo y detallado según las especificaciones proporcionadas.";
     }
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: prompt },
-      ],
-      temperature: 0.7,
+    const message = await anthropic.messages.create({
+      model: "claude-3-5-sonnet-20240620",
       max_tokens: 4000,
+      system: systemPrompt,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
     });
 
-    const generatedContent = completion.choices[0].message.content;
+    let generatedContent = "";
+    for (const block of message.content) {
+      if (block.type === "text") {
+        generatedContent += block.text;
+      }
+    }
 
     return NextResponse.json({ content: generatedContent });
   } catch (error) {
-    console.error("Error al generar contenido con IA:", error);
+    console.error("Error al generar contenido con Claude:", error);
     return NextResponse.json(
       { error: "Error al generar contenido con IA" },
       { status: 500 }

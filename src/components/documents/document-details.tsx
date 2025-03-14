@@ -52,7 +52,7 @@ const getDocumentById = (id: string) => {
     id: "doc-1",
     title: "Contrato de arrendamiento",
     description:
-      "Contrato de arrendamiento para propiedad residencial ubicada en Madrid",
+      "Contrato de arrendamiento para propiedad residencial ubicada en Valdivia",
     type: "Inmobiliario",
     content: 
       `Este contrato de arrendamiento se celebra el día [FECHA] entre [ARRENDADOR] y [ARRENDATARIO]...

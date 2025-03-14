@@ -431,7 +431,7 @@ export function DocumentForm({ id, isEditing }: DocumentFormProps) {
                   </Alert>
                   <div className="flex gap-2">
                     <Textarea
-                      placeholder="Ej: Contrato de arrendamiento para un apartamento en Madrid, duración de 2 años, con fianza de 2 meses..."
+                      placeholder="Ej: Contrato de arrendamiento para un apartamento en Valdivia, duración de 2 años, con fianza de 2 meses..."
                       value={aiPrompt}
                       onChange={(e) => setAiPrompt(e.target.value)}
                       className="flex-grow resize-none h-20"

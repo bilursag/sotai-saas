@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   PlusCircle,
@@ -9,11 +9,16 @@ import {
   FolderOpen,
   Filter,
   ArrowDownUp,
-  Info,
-  Search,
+  Loader2,
+  Clock,
   Eye,
   Edit,
   Trash2,
+  BarChart3,
+  CalendarDays,
+  Wand2,
+  AlertTriangle,
+  Search,
 } from "lucide-react";
 import {
   Card,
@@ -27,7 +32,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,77 +49,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-const recentDocuments = [
-  {
-    id: "doc-1",
-    title: "Contrato de arrendamiento",
-    type: "Inmobiliario",
-    date: "10 Mar 2025",
-    status: "Completado",
-    pages: 3,
-    lastEdited: "hace 2 días",
-    aiGenerated: true,
-  },
-  {
-    id: "doc-2",
-    title: "Acuerdo de confidencialidad",
-    type: "Corporativo",
-    date: "8 Mar 2025",
-    status: "En revisión",
-    pages: 2,
-    lastEdited: "hace 3 días",
-    aiGenerated: false,
-  },
-  {
-    id: "doc-3",
-    title: "Testamento",
-    type: "Familiar",
-    date: "5 Mar 2025",
-    status: "Borrador",
-    pages: 7,
-    lastEdited: "hace 5 días",
-    aiGenerated: false,
-  },
-  {
-    id: "doc-4",
-    title: "Contrato de servicios",
-    type: "Comercial",
-    date: "3 Mar 2025",
-    status: "Completado",
-    pages: 4,
-    lastEdited: "hace 7 días",
-    aiGenerated: true,
-  },
-];
-
-const popularTemplates = [
-  {
-    id: 1,
-    title: "Contrato de trabajo",
-    category: "Laboral",
-    usageCount: 1245,
-  },
-  { id: 2, title: "NDA estándar", category: "Corporativo", usageCount: 987 },
-  {
-    id: 3,
-    title: "Contrato de compraventa",
-    category: "Inmobiliario",
-    usageCount: 856,
-  },
-  {
-    id: 4,
-    title: "Reclamación administrativa",
-    category: "Administrativo",
-    usageCount: 742,
-  },
-];
-
-const stats = [
-  { title: "Documentos generados", value: 42, change: "+12% este mes" },
-  { title: "Plantillas utilizadas", value: 15, change: "+5% este mes" },
-  { title: "Tiempo ahorrado", value: "34h", change: "~5.6h por documento" },
-];
+// Importar servicios para obtener datos reales
+import { getAllDocuments } from "@/services/document-service";
+import { getAllTemplates } from "@/services/template-service";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -124,24 +62,136 @@ export default function Dashboard() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
 
+  // Estado para datos reales
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Estadísticas calculadas
+  const [stats, setStats] = useState({
+    totalDocuments: 0,
+    templatesUsed: 0,
+    timeSaved: 0,
+    aiGeneratedPercent: 0,
+  });
+
+  // Cargar datos al iniciar
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        // Cargar documentos
+        const docsData = await getAllDocuments();
+        setDocuments(docsData);
+
+        // Cargar plantillas
+        const templatesData = await getAllTemplates();
+        setTemplates(templatesData);
+
+        // Calcular estadísticas
+        calculateStats(docsData, templatesData);
+      } catch (err) {
+        console.error("Error al cargar datos del dashboard:", err);
+        setError("No se pudieron cargar los datos del dashboard");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  // Calcular estadísticas basadas en datos reales
+  const calculateStats = (docs: any[], temps: any[]) => {
+    // Total de documentos
+    const totalDocs = docs.length;
+
+    // Total de plantillas usadas (documentos que se basaron en una plantilla)
+    const templatesUsed = docs.filter((doc) => doc.templateId).length;
+
+    // Porcentaje de documentos generados con IA
+    const aiGenerated = docs.filter((doc) => doc.aiGenerated).length;
+    const aiPercent =
+      totalDocs > 0 ? Math.round((aiGenerated / totalDocs) * 100) : 0;
+
+    // Estimación de tiempo ahorrado (asumiendo 30 minutos por documento)
+    const timePerDoc = 30; // minutos
+    const timeSaved = totalDocs * timePerDoc;
+
+    setStats({
+      totalDocuments: totalDocs,
+      templatesUsed: temps.length,
+      timeSaved: timeSaved,
+      aiGeneratedPercent: aiPercent,
+    });
+  };
+
+  // Filtrar documentos según la búsqueda
+  const filteredDocuments = documents.filter(
+    (doc) =>
+      doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (doc.type &&
+        doc.type.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (doc.tags &&
+        doc.tags.some((tag) =>
+          tag.name.toLowerCase().includes(searchQuery.toLowerCase())
+        ))
+  );
+
+  // Ordenar documentos por fecha de actualización
+  const recentDocuments = [...filteredDocuments]
+    .sort(
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    )
+    .slice(0, 4);
+
+  // Función para formatear fechas
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    // Si es hoy
+    if (date.toDateString() === today.toDateString()) {
+      return `Hoy, ${date.toLocaleTimeString("es-ES", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    }
+
+    // Si es ayer
+    if (date.toDateString() === yesterday.toDateString()) {
+      return `Ayer, ${date.toLocaleTimeString("es-ES", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    }
+
+    // Otro día
+    return date.toLocaleDateString("es-ES", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  // Obtener color de estado
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Completado":
+    switch (status?.toLowerCase()) {
+      case "completado":
         return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
-      case "En revisión":
+      case "en_revision":
+      case "en revisión":
         return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
-      case "Borrador":
+      case "borrador":
         return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300";
       default:
         return "bg-gray-100 text-gray-800";
     }
   };
-
-  const filteredDocuments = recentDocuments.filter(
-    (doc) =>
-      doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.type.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   const handleCreateDocument = () => {
     router.push("/documents?view=new");
@@ -174,9 +224,57 @@ export default function Dashboard() {
     router.push("/documents?view=list");
   };
 
-  const handleUseTemplate = (templateId: number) => {
+  const handleUseTemplate = (templateId: string) => {
     router.push(`/documents?view=new&templateId=${templateId}`);
   };
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto max-w-7xl p-4 space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+        </div>
+        <div className="flex flex-col items-center justify-center h-96">
+          <Loader2 className="size-16 text-primary animate-spin mb-4" />
+          <h3 className="text-xl font-medium">Cargando datos</h3>
+          <p className="text-muted-foreground">
+            Por favor espera mientras cargamos tu información...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto max-w-7xl p-4 space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <Button
+            className="flex items-center gap-2"
+            onClick={handleCreateDocument}
+          >
+            <PlusCircle className="size-4" />
+            <span>Nuevo documento</span>
+          </Button>
+        </div>
+        <Alert variant="destructive">
+          <AlertTriangle className="size-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>
+            {error}
+            <Button
+              variant="outline"
+              className="ml-2"
+              onClick={() => window.location.reload()}
+            >
+              Reintentar
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto max-w-7xl p-4 space-y-6">
@@ -197,21 +295,58 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {stats.map((stat, index) => (
-          <Card key={index}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {stat.title}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {stat.change}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <FileText className="size-4" />
+              Documentos totales
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{stats.totalDocuments}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {documents.length > 0
+                ? `Último creado ${formatDate(documents[0].createdAt)}`
+                : "Sin documentos aún"}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <FolderOpen className="size-4" />
+              Plantillas disponibles
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{stats.templatesUsed}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Para diferentes tipos de documentos
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Clock className="size-4" />
+              Tiempo estimado ahorrado
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">
+              {stats.timeSaved < 60
+                ? `${stats.timeSaved} min`
+                : `${Math.floor(stats.timeSaved / 60)}h ${
+                    stats.timeSaved % 60
+                  }m`}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Basado en 30 minutos por documento
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <Tabs
@@ -230,9 +365,9 @@ export default function Dashboard() {
               <FolderOpen className="size-4" />
               <span>Plantillas</span>
             </TabsTrigger>
-            <TabsTrigger value="historial" className="flex items-center gap-2">
+            <TabsTrigger value="actividad" className="flex items-center gap-2">
               <History className="size-4" />
-              <span>Historial</span>
+              <span>Actividad</span>
             </TabsTrigger>
           </TabsList>
           <div className="hidden sm:flex items-center gap-2">
@@ -289,7 +424,7 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {filteredDocuments.length === 0 ? (
+            {recentDocuments.length === 0 ? (
               <div className="col-span-2 bg-muted/30 rounded-lg p-8 text-center">
                 <FileText className="size-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium mb-2">
@@ -304,35 +439,35 @@ export default function Dashboard() {
                 </Button>
               </div>
             ) : (
-              filteredDocuments.map((doc) => (
+              recentDocuments.map((doc) => (
                 <Card key={doc.id} className="flex flex-col h-full">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
                       <div>
                         <CardTitle className="text-lg">{doc.title}</CardTitle>
                         <CardDescription>
-                          {doc.type} • {doc.date}
+                          {doc.type} • {formatDate(doc.updatedAt)}
                         </CardDescription>
                       </div>
                       <Badge className={getStatusColor(doc.status)}>
-                        {doc.status}
+                        {doc.status.charAt(0).toUpperCase() +
+                          doc.status.slice(1).replace("_", " ")}
                       </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="flex-grow">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <FileText className="size-4" />
-                        <span>
-                          {doc.pages} páginas • Última edición: {doc.lastEdited}
-                        </span>
+                        <Clock className="size-4" />
+                        <span>Última edición: {formatDate(doc.updatedAt)}</span>
                       </div>
                       {doc.aiGenerated && (
                         <Badge
                           variant="outline"
                           className="bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 border-purple-200 dark:border-purple-800"
                         >
-                          IA
+                          <Wand2 className="size-3 mr-1" />
+                          <span>IA</span>
                         </Badge>
                       )}
                     </div>
@@ -389,36 +524,39 @@ export default function Dashboard() {
 
           <div className="mt-8">
             <h2 className="text-xl font-semibold mb-4">
-              Documentos recomendados
+              Documentos generados con IA
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <Card className="border-dashed border-2 border-primary/20 bg-primary/5">
-                <CardHeader>
-                  <CardTitle className="text-lg">
-                    Actualización de términos
-                  </CardTitle>
-                  <CardDescription>
-                    Basado en cambios legislativos recientes
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                    <Info className="size-4" />
-                    <span>Nueva legislación aplicable desde marzo 2025</span>
-                  </div>
-                  <Progress value={33} className="h-2 mb-1" />
-                  <p className="text-xs text-muted-foreground">
-                    La IA ha detectado que 2 de tus documentos deberían
-                    actualizarse
-                  </p>
-                </CardContent>
-                <CardFooter>
-                  <Button variant="outline" size="sm" className="w-full">
-                    Ver recomendaciones
-                  </Button>
-                </CardFooter>
-              </Card>
-            </div>
+            <Card className="border-dashed border-2 border-primary/20 bg-primary/5">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wand2 className="size-5 text-primary" />
+                  Uso de IA en documentos
+                </CardTitle>
+                <CardDescription>
+                  {documents.filter((d) => d.aiGenerated).length} de{" "}
+                  {documents.length} documentos generados con IA
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-2">
+                  <Progress value={stats.aiGeneratedPercent} className="h-2" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {stats.aiGeneratedPercent}% de tus documentos han sido creados
+                  con asistencia de IA
+                </p>
+              </CardContent>
+              <CardFooter>
+                <Button
+                  variant="outline"
+                  onClick={handleCreateDocument}
+                  className="w-full"
+                >
+                  <Wand2 className="size-4 mr-2" />
+                  Crear documento con IA
+                </Button>
+              </CardFooter>
+            </Card>
           </div>
         </TabsContent>
 
@@ -434,128 +572,145 @@ export default function Dashboard() {
             </Button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {popularTemplates.map((template) => (
-              <Card key={template.id} className="flex flex-col h-full">
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start">
-                    <Badge variant="outline">{template.category}</Badge>
-                    <div className="text-xs text-muted-foreground">
-                      {template.usageCount.toLocaleString()} usos
+            {templates.length === 0 ? (
+              <div className="col-span-full bg-muted/30 rounded-lg p-8 text-center">
+                <FolderOpen className="size-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">
+                  No hay plantillas disponibles
+                </h3>
+                <p className="text-muted-foreground">
+                  Las plantillas te permiten crear documentos rápidamente.
+                </p>
+                <Button onClick={handleViewAllTemplates} className="mt-4">
+                  Explorar plantillas
+                </Button>
+              </div>
+            ) : (
+              templates.slice(0, 4).map((template) => (
+                <Card key={template.id} className="flex flex-col h-full">
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                      <Badge variant="outline">{template.category}</Badge>
+                      <div className="text-xs text-muted-foreground">
+                        {template.usageCount || 0} usos
+                      </div>
                     </div>
-                  </div>
-                  <CardTitle className="text-lg mt-2">
-                    {template.title}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                  <p className="text-sm text-muted-foreground">
-                    Plantilla profesional actualizada con las últimas normativas
-                  </p>
-                </CardContent>
-                <CardFooter className="pt-2 border-t">
-                  <Button
-                    size="sm"
-                    className="w-full"
-                    onClick={() => handleUseTemplate(template.id)}
-                  >
-                    Usar plantilla
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
-          <div className="mt-8">
-            <h2 className="text-xl font-semibold mb-4">
-              Categorías de plantillas
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {[
-                "Laboral",
-                "Inmobiliario",
-                "Corporativo",
-                "Familiar",
-                "Administrativo",
-                "Comercial",
-              ].map((category) => (
-                <Card
-                  key={category}
-                  className="hover:bg-muted/50 transition-colors cursor-pointer"
-                  onClick={() =>
-                    router.push(`/templates?category=${category.toLowerCase()}`)
-                  }
-                >
-                  <CardHeader>
-                    <CardTitle className="text-lg">{category}</CardTitle>
+                    <CardTitle className="text-lg mt-2">
+                      {template.title}
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      Accede a plantillas específicas para{" "}
-                      {category.toLowerCase()}
+                  <CardContent className="flex-grow">
+                    <p className="text-sm text-muted-foreground line-clamp-3">
+                      {template.description ||
+                        "Plantilla profesional para documentos legales"}
                     </p>
+                    {template.tags && template.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {template.tags.slice(0, 3).map((tag: any) => (
+                          <Badge
+                            key={tag.id}
+                            variant="secondary"
+                            className="text-xs"
+                          >
+                            {tag.name}
+                          </Badge>
+                        ))}
+                        {template.tags.length > 3 && (
+                          <Badge variant="secondary" className="text-xs">
+                            +{template.tags.length - 3}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
                   </CardContent>
+                  <CardFooter className="pt-2 border-t">
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      onClick={() => handleUseTemplate(template.id)}
+                    >
+                      Usar plantilla
+                    </Button>
+                  </CardFooter>
                 </Card>
-              ))}
-            </div>
+              ))
+            )}
           </div>
         </TabsContent>
 
-        <TabsContent value="historial">
+        <TabsContent value="actividad" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Historial de actividad</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="size-5" />
+                Resumen de actividad
+              </CardTitle>
               <CardDescription>
-                Registro de tus acciones recientes en la plataforma
+                Actividad reciente en la plataforma
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-8">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="flex items-start gap-4">
-                    <Avatar className="mt-1">
-                      <AvatarImage
-                        src={i % 2 === 0 ? "/placeholder.svg" : undefined}
-                      />
-                      <AvatarFallback>
-                        {i % 2 === 0 ? "TU" : <FileText className="size-4" />}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium">
-                        {i % 2 === 0 ? "Has editado " : "La IA ha generado "}
-                        <span
-                          className="text-primary underline cursor-pointer"
-                          onClick={() =>
-                            handleViewDocument(recentDocuments[i % 4].id)
-                          }
-                        >
-                          {recentDocuments[i % 4].title}
-                        </span>
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {i === 0
-                          ? "Hace 2 horas"
-                          : i === 1
-                          ? "Ayer, 15:30"
-                          : `${i + 2} días atrás`}
-                      </p>
-                      {i === 0 && (
-                        <div className="mt-2 p-3 bg-muted rounded-md text-sm">
-                          <p>
-                            Cambios principales: Actualización de cláusulas
-                            según nuevas normativas
-                          </p>
-                        </div>
-                      )}
+                {documents.length > 0 ? (
+                  documents.slice(0, 5).map((doc, i) => (
+                    <div key={doc.id} className="flex items-start gap-4">
+                      <div className="bg-muted rounded-full p-2">
+                        <CalendarDays className="size-4 text-primary" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">
+                          {doc.aiGenerated ? (
+                            <>
+                              <Badge
+                                variant="outline"
+                                className="mr-2 bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
+                              >
+                                <Wand2 className="size-3 mr-1" />
+                                IA
+                              </Badge>
+                              Documento generado con IA:
+                            </>
+                          ) : (
+                            "Documento creado:"
+                          )}
+                          <span
+                            className="text-primary underline cursor-pointer ml-1"
+                            onClick={() => handleViewDocument(doc.id)}
+                          >
+                            {doc.title}
+                          </span>
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(doc.createdAt)}
+                        </p>
+                        {doc.description && (
+                          <div className="mt-2 p-3 bg-muted rounded-md text-xs">
+                            <p className="line-clamp-2">{doc.description}</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <History className="size-12 text-muted-foreground opacity-50 mb-4" />
+                    <p className="text-muted-foreground">
+                      No hay actividad reciente para mostrar
+                    </p>
+                    <Button onClick={handleCreateDocument} className="mt-4">
+                      Crear documento
+                    </Button>
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
-            <CardFooter>
-              <Button variant="outline" className="w-full">
-                Cargar más actividad
-              </Button>
-            </CardFooter>
+            {documents.length > 5 && (
+              <CardFooter>
+                <Button variant="outline" className="w-full">
+                  Ver más actividad
+                </Button>
+              </CardFooter>
+            )}
           </Card>
         </TabsContent>
       </Tabs>
