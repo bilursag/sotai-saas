@@ -29,6 +29,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cobe": "^0.6.3",
+    "diff": "^7.0.0",
     "html2pdf.js": "^0.10.3",
     "jspdf": "^3.0.0",
     "jspdf-autotable": "^5.0.2",
@@ -50,6 +51,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@types/diff": "^7.0.1",
     "@types/node": "^20.17.24",
     "@types/react": "^19",
     "@types/react-dom": "^19",

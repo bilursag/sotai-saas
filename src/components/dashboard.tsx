@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect } from "react";
@@ -50,8 +51,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-
-// Importar servicios para obtener datos reales
 import { getAllDocuments } from "@/services/document-service";
 import { getAllTemplates } from "@/services/template-service";
 
@@ -61,14 +60,11 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
-
-  // Estado para datos reales
   const [documents, setDocuments] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Estadísticas calculadas
   const [stats, setStats] = useState({
     totalDocuments: 0,
     templatesUsed: 0,
@@ -76,20 +72,14 @@ export default function Dashboard() {
     aiGeneratedPercent: 0,
   });
 
-  // Cargar datos al iniciar
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        // Cargar documentos
         const docsData = await getAllDocuments();
         setDocuments(docsData);
-
-        // Cargar plantillas
         const templatesData = await getAllTemplates();
         setTemplates(templatesData);
-
-        // Calcular estadísticas
         calculateStats(docsData, templatesData);
       } catch (err) {
         console.error("Error al cargar datos del dashboard:", err);
@@ -102,20 +92,12 @@ export default function Dashboard() {
     loadData();
   }, []);
 
-  // Calcular estadísticas basadas en datos reales
   const calculateStats = (docs: any[], temps: any[]) => {
-    // Total de documentos
     const totalDocs = docs.length;
-
-    // Total de plantillas usadas (documentos que se basaron en una plantilla)
-    const templatesUsed = docs.filter((doc) => doc.templateId).length;
-
-    // Porcentaje de documentos generados con IA
+    //const templatesUsed = docs.filter((doc) => doc.templateId).length;
     const aiGenerated = docs.filter((doc) => doc.aiGenerated).length;
     const aiPercent =
       totalDocs > 0 ? Math.round((aiGenerated / totalDocs) * 100) : 0;
-
-    // Estimación de tiempo ahorrado (asumiendo 30 minutos por documento)
     const timePerDoc = 30; // minutos
     const timeSaved = totalDocs * timePerDoc;
 
@@ -127,19 +109,17 @@ export default function Dashboard() {
     });
   };
 
-  // Filtrar documentos según la búsqueda
   const filteredDocuments = documents.filter(
     (doc) =>
       doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (doc.type &&
         doc.type.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (doc.tags &&
-        doc.tags.some((tag) =>
+        doc.tags.some((tag: { name: string }) =>
           tag.name.toLowerCase().includes(searchQuery.toLowerCase())
         ))
   );
 
-  // Ordenar documentos por fecha de actualización
   const recentDocuments = [...filteredDocuments]
     .sort(
       (a, b) =>
@@ -147,14 +127,12 @@ export default function Dashboard() {
     )
     .slice(0, 4);
 
-  // Función para formatear fechas
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
-    // Si es hoy
     if (date.toDateString() === today.toDateString()) {
       return `Hoy, ${date.toLocaleTimeString("es-ES", {
         hour: "2-digit",
@@ -162,7 +140,6 @@ export default function Dashboard() {
       })}`;
     }
 
-    // Si es ayer
     if (date.toDateString() === yesterday.toDateString()) {
       return `Ayer, ${date.toLocaleTimeString("es-ES", {
         hour: "2-digit",
@@ -170,7 +147,6 @@ export default function Dashboard() {
       })}`;
     }
 
-    // Otro día
     return date.toLocaleDateString("es-ES", {
       day: "2-digit",
       month: "short",
@@ -178,7 +154,6 @@ export default function Dashboard() {
     });
   };
 
-  // Obtener color de estado
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
       case "completado":
@@ -652,7 +627,7 @@ export default function Dashboard() {
             <CardContent>
               <div className="space-y-8">
                 {documents.length > 0 ? (
-                  documents.slice(0, 5).map((doc, i) => (
+                  documents.slice(0, 5).map((doc) => (
                     <div key={doc.id} className="flex items-start gap-4">
                       <div className="bg-muted rounded-full p-2">
                         <CalendarDays className="size-4 text-primary" />
