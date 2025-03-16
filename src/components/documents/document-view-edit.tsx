@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect } from "react";
@@ -56,20 +57,21 @@ import {
   Wand2,
   Download,
 } from "lucide-react";
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-
 import {
   getDocument,
   updateDocument,
   deleteDocument,
 } from "@/services/document-service";
+import {
+  getDocumentVersions,
+  createDocumentVersion,
+} from "@/services/document-version-service";
+import { DocumentVersionViewer } from "../../components/version/document-version-viewer";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
 
-// Declaración para jsPDF con autoTable
 declare module "jspdf" {
   interface jsPDF {
     autoTable: (options: any) => jsPDF;
@@ -115,10 +117,15 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isCreatingVersion, setIsCreatingVersion] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [document, setDocument] = useState<any>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
+  const [versions, setVersions] = useState<any[]>([]);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [versionDescription, setVersionDescription] = useState("");
+  const [showCreateVersionDialog, setShowCreateVersionDialog] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -144,12 +151,10 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
 
         setDocument(documentData);
 
-        // Extraer etiquetas del documento
         const documentTags =
           documentData.tags?.map((tag: any) => tag.name) || [];
         setTags(documentTags);
 
-        // Configurar formulario con los datos del documento
         form.reset({
           title: documentData.title || "",
           description: documentData.description || "",
@@ -157,6 +162,9 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
           content: documentData.content || "",
           status: documentData.status?.toLowerCase() || "borrador",
         });
+
+        const versionsData = await getDocumentVersions(id);
+        setVersions(versionsData);
       } catch (err) {
         console.error("Error al cargar el documento:", err);
         setError(
@@ -177,7 +185,6 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
       setIsSaving(true);
       setError(null);
 
-      // Preparar datos del documento para actualización
       const documentData = {
         ...values,
         tags,
@@ -186,13 +193,14 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
 
       await updateDocument(id, documentData);
 
-      // Actualizar el estado local después de guardar
       setDocument({
         ...document,
         ...documentData,
       });
 
-      // Volver al modo de visualización después de guardar
+      const versionsData = await getDocumentVersions(id);
+      setVersions(versionsData);
+
       setIsEditing(false);
     } catch (err) {
       console.error("Error al actualizar el documento:", err);
@@ -201,6 +209,33 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
       );
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleCreateVersion = async () => {
+    if (!id || !document) return;
+
+    try {
+      setIsCreatingVersion(true);
+      setError(null);
+
+      const versionData = {
+        content: document.content,
+        description: versionDescription || `Nueva versión manual`,
+        aiGenerated: false,
+      };
+      await createDocumentVersion(id, versionData);
+      const versionsData = await getDocumentVersions(id);
+      setVersions(versionsData);
+      setShowCreateVersionDialog(false);
+      setVersionDescription("");
+    } catch (err) {
+      console.error("Error al crear nueva versión:", err);
+      setError(
+        "No se pudo crear la nueva versión. Por favor, inténtalo de nuevo."
+      );
+    } finally {
+      setIsCreatingVersion(false);
     }
   };
 
@@ -251,9 +286,7 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
 
   const handleCancel = () => {
     if (isEditing) {
-      // Si estamos editando, volver al modo de visualización
       setIsEditing(false);
-      // Restaurar formulario con los datos originales del documento
       form.reset({
         title: document?.title || "",
         description: document?.description || "",
@@ -262,7 +295,6 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
         status: document?.status?.toLowerCase() || "borrador",
       });
     } else {
-      // Si estamos visualizando, volver a la lista de documentos
       router.push("/documents?view=list");
     }
   };
@@ -277,7 +309,6 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
       await deleteDocument(id);
       setShowDeleteDialog(false);
 
-      // Redirigir a la lista de documentos después de eliminar
       router.push("/documents?view=list");
     } catch (err) {
       console.error("Error al eliminar el documento:", err);
@@ -296,72 +327,48 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
     }
   };
 
-  // Función mejorada para exportar documento a PDF con corrección de espaciado
   const handleExportToPDF = async () => {
     if (!document) return;
 
     try {
       setIsExporting(true);
-
-      // Crear un nuevo documento PDF
       const pdf = new jsPDF({
         orientation: "portrait",
         unit: "mm",
         format: "a4",
       });
-
-      // Configuración de página
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       const margin = 15;
       const contentWidth = pageWidth - margin * 2;
-
-      // Configuración de líneas
       const titleFontSize = 16;
       const subtitleFontSize = 12;
       const bodyFontSize = 10;
-
-      // Factores de espaciado - ajustados para evitar superposición
-      const lineHeightFactor = 1.5; // Factor de espaciado entre líneas (aumentado)
-
-      // Función para agregar texto con control de paginación y espaciado mejorado
+      const lineHeightFactor = 1.5;
       let yPosition = margin;
 
-      const addText = (text, fontSize, isBold = false) => {
-        // Saltar si el texto está vacío
+      const addText = (text: string, fontSize: number, isBold = false) => {
         if (!text || text.trim() === "") return;
-
-        // Configurar fuente
         pdf.setFontSize(fontSize);
         pdf.setFont("helvetica", isBold ? "bold" : "normal");
-
-        // Dividir el texto para que quepa en el ancho de la página
         const lines = pdf.splitTextToSize(text, contentWidth);
-
-        // Calcular la altura de línea con el factor de espaciado
-        const lineHeight = fontSize * 0.3528 * lineHeightFactor; // mm por línea
-
-        // Calcular altura total que ocupará el texto
+        const lineHeight = fontSize * 0.3528 * lineHeightFactor;
         const textHeight = lines.length * lineHeight;
-
-        // Verificar si necesitamos una nueva página
+        
         if (yPosition + textHeight > pageHeight - margin) {
           pdf.addPage();
           yPosition = margin;
         }
 
-        // Agregar el texto línea por línea con espaciado controlado
         for (let i = 0; i < lines.length; i++) {
           pdf.text(lines[i], margin, yPosition);
           yPosition += lineHeight;
         }
 
-        // Añadir espacio extra después del bloque de texto
         yPosition += 2;
       };
 
-      // Función para formatear fechas
-      const formatDate = (dateString) => {
+      const formatDate = (dateString: string | number | Date) => {
         if (!dateString) return "No disponible";
         return new Date(dateString).toLocaleDateString("es-ES", {
           day: "2-digit",
@@ -370,9 +377,8 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
         });
       };
 
-      // Función para agregar pie de página en cada página
       const addFooter = () => {
-        const totalPages = pdf.internal.getNumberOfPages();
+        const totalPages = pdf.getNumberOfPages();
         const now = new Date().toLocaleDateString("es-ES", {
           day: "2-digit",
           month: "long",
@@ -394,12 +400,8 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
         }
       };
 
-      // Procesar el documento
-      // Título del documento
-      pdf.setTextColor(0, 0, 0); // Asegurar que el color de texto es negro
+      pdf.setTextColor(0, 0, 0);
       addText(document.title, titleFontSize, true);
-
-      // Información básica
       addText(`Tipo: ${document.type}`, bodyFontSize);
       addText(`Estado: ${document.status}`, bodyFontSize);
       addText(`Creado: ${formatDate(document.createdAt)}`, bodyFontSize);
@@ -407,25 +409,19 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
         `Última modificación: ${formatDate(document.updatedAt)}`,
         bodyFontSize
       );
-
-      // Etiquetas
       if (tags && tags.length > 0) {
         addText(`Etiquetas: ${tags.join(", ")}`, bodyFontSize);
       }
 
-      // Descripción
       if (document.description) {
-        yPosition += 3; // Espacio adicional antes de la descripción
+        yPosition += 3;
         addText("Descripción:", subtitleFontSize, true);
         addText(document.description, bodyFontSize);
       }
 
-      // Contenido principal
-      yPosition += 5; // Espacio adicional antes del contenido principal
+      yPosition += 5;
       addText("CONTENIDO DEL DOCUMENTO", subtitleFontSize, true);
 
-      // Dividir el contenido en párrafos para mejor manejo
-      // Detectamos diferentes tipos de separadores de párrafo
       const paragraphSeparators = ["\n\n", "\r\n\r\n", "\n\r\n\r"];
       let contentParagraphs = [document.content];
 
@@ -435,14 +431,12 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
         );
       }
 
-      // Filtrar párrafos vacíos y procesar cada uno
       contentParagraphs = contentParagraphs.filter((p) => p.trim() !== "");
 
-      // Procesar cada párrafo con fragmentos más pequeños para mayor control
       for (const paragraph of contentParagraphs) {
         if (paragraph.length > 500) {
-          // Dividir párrafos largos en fragmentos más pequeños
           const chunks = [];
+
           for (let i = 0; i < paragraph.length; i += 400) {
             chunks.push(paragraph.substring(i, i + 400));
           }
@@ -454,17 +448,12 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
           addText(paragraph, bodyFontSize);
         }
 
-        // Añadir pequeño espacio entre párrafos para mejor legibilidad
         yPosition += 1;
       }
 
-      // Añadir pie de página
       addFooter();
-
-      // Guardar el PDF
       pdf.save(`${document.title.replace(/\s+/g, "_")}.pdf`);
-
-      // Finalizar
+      
       setTimeout(() => {
         setIsExporting(false);
       }, 1000);
@@ -507,10 +496,19 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
     );
   }
 
+  if (showVersionHistory) {
+    return (
+      <DocumentVersionViewer
+        documentId={id}
+        currentContent={document.content}
+        onBack={() => setShowVersionHistory(false)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       {isEditing ? (
-        // MODO EDICIÓN
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSave)} className="space-y-6">
             <Card>
@@ -706,7 +704,6 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
           </form>
         </Form>
       ) : (
-        // MODO VISUALIZACIÓN
         <>
           <Card>
             <CardHeader className="pb-3">
@@ -765,7 +762,6 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
                     <Edit className="size-4" />
                     <span>Editar</span>
                   </Button>
-
                   <Button
                     variant="outline"
                     className="flex items-center gap-2"
@@ -829,6 +825,11 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
               >
                 <History className="size-4" />
                 <span>Historial de versiones</span>
+                {versions?.length > 0 && (
+                  <Badge variant="outline" className="ml-1 px-2 py-0 h-5">
+                    {versions.length}
+                  </Badge>
+                )}
               </TabsTrigger>
               <TabsTrigger
                 value="comentarios"
@@ -848,7 +849,7 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="bg-muted/30 rounded-lg p-6 whitespace-pre-wrap font-serif">
+                  <div className="bg-muted/30 rounded-lg p-6 whitespace-pre-wrap font-serif max-h-[60vh] overflow-y-auto">
                     {document?.content}
                   </div>
                 </CardContent>
@@ -898,30 +899,50 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
 
             <TabsContent value="historial" className="m-0">
               <Card>
-                <CardHeader>
-                  <CardTitle>Historial de versiones</CardTitle>
-                  <CardDescription>
-                    Seguimiento de cambios y revisiones del documento
-                  </CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <History className="size-5" />
+                      Historial de versiones
+                    </CardTitle>
+                    <CardDescription>
+                      Seguimiento de cambios y revisiones del documento
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowVersionHistory(true)}
+                    >
+                      Ver historial detallado
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowCreateVersionDialog(true)}
+                      disabled={readOnly}
+                    >
+                      Nueva versión
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  {document?.versions?.length > 0 ? (
+                  {versions?.length ? (
                     <div className="space-y-6">
-                      {document.versions.map((version: any, index: number) => (
-                        <div key={version.id || index} className="flex gap-4">
+                      {versions.slice(0, 3).map((version, index) => (
+                        <div key={version.id} className="flex gap-4">
                           <div className="flex flex-col items-center">
                             <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
-                              {index === 0 ? "A" : index + 1}
+                              {version.versionNumber}
                             </div>
-                            {index < document.versions.length - 1 && (
+                            {index < versions.slice(0, 3).length - 1 && (
                               <div className="w-0.5 grow bg-muted-foreground/20 my-1"></div>
                             )}
                           </div>
                           <div className="space-y-1 pb-4">
                             <div className="flex items-center gap-2">
-                              <h4 className="font-semibold">
-                                Versión {version.versionNumber}
-                              </h4>
+                              <h4 className="font-semibold">Versión {version.versionNumber}</h4>
                               <span className="text-xs text-muted-foreground">
                                 {formatDate(version.createdAt)}
                               </span>
@@ -936,22 +957,21 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
                               )}
                             </div>
                             <p className="text-sm text-muted-foreground">
-                              {version.description ||
-                                "Actualización del documento"}
+                              {version.description || "Actualización del documento"}
                             </p>
-                            <div className="pt-2 flex gap-2">
-                              <Button variant="outline" size="sm">
-                                Ver esta versión
-                              </Button>
-                              {index > 0 && (
-                                <Button variant="outline" size="sm">
-                                  Comparar con anterior
-                                </Button>
-                              )}
-                            </div>
                           </div>
                         </div>
                       ))}
+                      {versions.length > 3 && (
+                        <div className="flex justify-center pt-2 border-t">
+                          <Button 
+                            variant="link" 
+                            onClick={() => setShowVersionHistory(true)}
+                          >
+                            Ver todas las versiones ({versions.length})
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="text-center py-6 text-muted-foreground">
@@ -982,7 +1002,6 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
                           key={comment.id}
                           className="flex gap-4 border-b pb-4 last:border-0"
                         >
-                          {/* Contenido del comentario */}
                         </div>
                       ))}
                     </div>
@@ -1011,7 +1030,6 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
         </>
       )}
 
-      {/* Diálogo de confirmación para eliminar */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1041,6 +1059,58 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
                 </>
               ) : (
                 "Eliminar"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showCreateVersionDialog} onOpenChange={setShowCreateVersionDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Crear nueva versión</DialogTitle>
+            <DialogDescription>
+              Crea un punto de guardado en el historial de este documento para poder 
+              volver a este estado en el futuro si es necesario.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <FormLabel>Descripción de la versión</FormLabel>
+            <Textarea
+              value={versionDescription}
+              onChange={(e) => setVersionDescription(e.target.value)}
+              placeholder="Ej: Revisión de cláusulas, Correcciones finales..."
+              className="mt-2 resize-none"
+            />
+            <p className="text-sm text-muted-foreground mt-2">
+              Una buena descripción te ayudará a identificar rápidamente el propósito de esta versión en el futuro.
+            </p>
+          </div>
+          <DialogFooter className="flex space-x-2 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCreateVersionDialog(false);
+                setVersionDescription("");
+              }}
+              disabled={isCreatingVersion}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleCreateVersion}
+              disabled={isCreatingVersion}
+            >
+              {isCreatingVersion ? (
+                <>
+                  <Loader2 className="size-4 mr-2 animate-spin" />
+                  <span>Creando versión...</span>
+                </>
+              ) : (
+                <>
+                  <History className="size-4 mr-2" />
+                  <span>Crear versión</span>
+                </>
               )}
             </Button>
           </DialogFooter>
