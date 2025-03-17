@@ -36,6 +36,26 @@ export function Sidebar({ defaultCollapsed = false, onToggle }: SidebarProps) {
   const [recentDocuments, setRecentDocuments] = useState<any[]>([]);
   const [sharedDocuments, setSharedDocuments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+
+      if (window.innerWidth >= 1024 && !mobile) {
+        setCollapsed(false);
+      }
+    };
+
+    handleResize();
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -112,6 +132,16 @@ export function Sidebar({ defaultCollapsed = false, onToggle }: SidebarProps) {
 
   const navigateTo = (href: string) => {
     router.push(href);
+    if (isMobile && onToggle) {
+      onToggle();
+    }
+  };
+
+  const handleExpandCollapse = () => {
+    setCollapsed(!collapsed);
+    if (isMobile && onToggle && collapsed) {
+      onToggle();
+    }
   };
 
   return (
@@ -125,11 +155,9 @@ export function Sidebar({ defaultCollapsed = false, onToggle }: SidebarProps) {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => {
-            setCollapsed(!collapsed);
-            if (onToggle) onToggle();
-          }}
+          onClick={handleExpandCollapse}
           className="h-8 w-8"
+          aria-label={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}
         >
           {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </Button>
@@ -140,7 +168,7 @@ export function Sidebar({ defaultCollapsed = false, onToggle }: SidebarProps) {
           <div className="py-2">
             <div
               className={cn(
-                "flex items-center justify-between mb-2",
+                "flex items-center justify-between mb-2 pt-4",
                 collapsed && "justify-center"
               )}
             >
