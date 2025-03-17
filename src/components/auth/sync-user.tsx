@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
+import { AppSkeleton } from "../skeletons/app-skeleton";
 
 interface SyncUserProps {
   children: React.ReactNode;
@@ -37,7 +38,7 @@ export function SyncUser({ children }: SyncUserProps) {
   }, [user, isLoaded, isSynced]);
 
   if (isLoading) {
-    return <div>Cargando...</div>;
+    return <AppSkeleton />;
   }
 
   return <>{children}</>;

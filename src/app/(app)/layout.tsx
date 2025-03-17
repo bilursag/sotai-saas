@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { currentUser } from "@clerk/nextjs/server";
 import { ThemeProvider } from "@/components/theme-provider";
-import DashboardNavbar from "@/components/dashboard/navbar";
+import { AppLayout } from "@/components/layout/app-layout";
 import { SyncUser } from "@/components/auth/sync-user";
 
 export const metadata = {
@@ -10,7 +10,7 @@ export const metadata = {
     "Plataforma para generar y gestionar documentos legales con inteligencia artificial",
 };
 
-export default async function AppLayout({
+export default async function MainLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -30,8 +30,7 @@ export default async function AppLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <DashboardNavbar />
-          <main className="pt-16">{children}</main>
+          <AppLayout>{children}</AppLayout>
         </ThemeProvider>
       </div>
     </SyncUser>
