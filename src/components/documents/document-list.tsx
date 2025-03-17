@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect } from "react";
@@ -49,9 +50,13 @@ import {
   Copy,
   ListFilter,
   Loader2,
+  Users,
 } from "lucide-react";
 
 import { getAllDocuments, deleteDocument } from "@/services/document-service";
+import { getSharedWithMeDocuments } from "@/services/document-share-service";
+import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
+
 
 interface DocumentsListProps {
   onViewDetails: (id: string) => void;
@@ -79,20 +84,21 @@ export function DocumentsList({
   const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
-
-  // Nuevos estados para manejar la interacción con el backend
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [sharedDocuments, setSharedDocuments] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<"mine" | "shared">("mine");
 
-  // Cargar los documentos del backend cuando el componente se monte
   useEffect(() => {
-    const fetchDocuments = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true);
-        const data = await getAllDocuments();
-        setDocuments(data);
+        const ownData = await getAllDocuments();
+        setDocuments(ownData);
+        const sharedData = await getSharedWithMeDocuments();
+        setSharedDocuments(sharedData);
         setError(null);
       } catch (err) {
         console.error("Error al cargar documentos:", err);
@@ -102,10 +108,9 @@ export function DocumentsList({
       }
     };
 
-    fetchDocuments();
+    fetchData();
   }, []);
 
-  // Obtener colores del estado del documento
   const getStatusColor = (status: string) => {
     switch (status) {
       case "completado":
@@ -122,23 +127,17 @@ export function DocumentsList({
     }
   };
 
-  // Preparar para eliminar un documento
   const handleDeleteConfirmation = (docId: string) => {
     setDocumentToDelete(docId);
     setShowDeleteDialog(true);
   };
 
-  // Eliminar un documento
   const handleDeleteDocument = async () => {
     if (!documentToDelete) return;
-
     try {
       setIsDeleting(true);
       await deleteDocument(documentToDelete);
-
-      // Actualizar el estado local eliminando el documento
       setDocuments(documents.filter((doc) => doc.id !== documentToDelete));
-
       setShowDeleteDialog(false);
       setDocumentToDelete(null);
     } catch (err) {
@@ -149,8 +148,9 @@ export function DocumentsList({
     }
   };
 
-  // Filtrar documentos basados en búsqueda y filtros
-  const filteredDocuments = documents.filter((doc) => {
+  const docsToFilter = activeTab === "mine" ? documents : sharedDocuments;
+
+  const filteredDocuments = docsToFilter.filter((doc) => {
     const matchesSearch =
       doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       doc.tags.some((tag: { id: string; name: string }) =>
@@ -166,7 +166,6 @@ export function DocumentsList({
     return matchesSearch && matchesType && matchesStatus;
   });
 
-  // Obtener tipos y estados únicos para los filtros
   const uniqueTypes = Array.from(new Set(documents.map((doc) => doc.type)));
   const uniqueStatuses = Array.from(
     new Set(documents.map((doc) => doc.status))
@@ -174,7 +173,6 @@ export function DocumentsList({
 
   return (
     <div className="space-y-4">
-      {/* Filtros y búsqueda */}
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between bg-muted/40 p-4 rounded-lg">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -185,6 +183,23 @@ export function DocumentsList({
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+
+        <Tabs
+          value={activeTab}
+          onValueChange={(v: any) => setActiveTab(v)}
+          className="w-full md:w-auto"
+        >
+          <TabsList>
+            <TabsTrigger value="mine" className="flex items-center gap-1">
+              <FileText className="size-3" />
+              <span>Mis documentos</span>
+            </TabsTrigger>
+            <TabsTrigger value="shared" className="flex items-center gap-1">
+              <Users className="size-3" />
+              <span>Compartidos conmigo</span>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         <div className="flex flex-wrap gap-2 items-center">
           <DropdownMenu>

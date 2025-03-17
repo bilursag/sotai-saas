@@ -14,6 +14,7 @@ import {
   PlusCircle,
   LucideIcon,
   Wand2,
+  Users,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThemeSwitcher } from "../theme-switcher";
@@ -71,6 +72,11 @@ const navigation: NavItem[] = [
         name: "Documentos recientes",
         href: "/documents?view=recent",
         icon: FileText,
+      },
+      {
+        name: "Compartidos conmigo",
+        href: "/documents/shared",
+        icon: Users,
       },
     ],
   },

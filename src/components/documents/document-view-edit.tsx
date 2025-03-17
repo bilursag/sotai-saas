@@ -56,6 +56,8 @@ import {
   MessageSquare,
   Wand2,
   Download,
+  Share2,
+  UserCircle,
 } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -70,6 +72,8 @@ import {
   createDocumentVersion,
 } from "@/services/document-version-service";
 import { DocumentVersionViewer } from "../../components/version/document-version-viewer";
+import { DocumentShareDialog } from "./document-share-dialog";
+import { SharedDocumentIndicator } from "./shared-document-indicator";
 import jsPDF from "jspdf";
 
 declare module "jspdf" {
@@ -126,6 +130,7 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [versionDescription, setVersionDescription] = useState("");
   const [showCreateVersionDialog, setShowCreateVersionDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -322,8 +327,10 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
   };
 
   const handleEdit = () => {
-    if (!readOnly) {
+    if (!readOnly && (document?.isOwner || document?.permission === "edit")) {
       setIsEditing(true);
+    } else if (!document?.isOwner && document?.permission === "view") {
+      setError("No tienes permisos para editar este documento");
     }
   };
 
@@ -744,6 +751,26 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
                 </div>
 
                 <div className="flex flex-wrap gap-2">
+                  {document?.isOwner && (
+                    <SharedDocumentIndicator
+                      documentId={id}
+                      onOpenShareDialog={() => setShowShareDialog(true)}
+                    />
+                  )}
+
+                  {document?.isShared && (
+                    <Badge
+                      variant="outline"
+                      className="flex items-center gap-1 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
+                    >
+                      <UserCircle className="size-3 mr-1" />
+                      <span>
+                        Compartido contigo (
+                        {document.permission === "edit" ? "Edición" : "Lectura"}
+                        )
+                      </span>
+                    </Badge>
+                  )}
                   <Button
                     variant="outline"
                     className="flex items-center gap-2"
@@ -757,7 +784,10 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
                     variant="outline"
                     className="flex items-center gap-2"
                     onClick={() => handleEdit()}
-                    disabled={readOnly}
+                    disabled={
+                      readOnly ||
+                      (!document?.isOwner && document?.permission === "view")
+                    }
                   >
                     <Edit className="size-4" />
                     <span>Editar</span>
@@ -782,10 +812,19 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
                   </Button>
 
                   <Button
+                    variant="outline"
+                    className="flex items-center gap-2"
+                    onClick={() => setShowShareDialog(true)}
+                  >
+                    <Share2 className="size-4" />
+                    <span>Compartir</span>
+                  </Button>
+
+                  <Button
                     variant="destructive"
                     className="flex items-center gap-2"
                     onClick={() => setShowDeleteDialog(true)}
-                    disabled={readOnly}
+                    disabled={readOnly || !document?.isOwner} // Solo el propietario puede eliminar
                   >
                     <Trash2 className="size-4" />
                     <span>Eliminar</span>
@@ -910,15 +949,15 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
                     </CardDescription>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={() => setShowVersionHistory(true)}
                     >
                       Ver historial detallado
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={() => setShowCreateVersionDialog(true)}
                       disabled={readOnly}
@@ -942,7 +981,9 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
                           </div>
                           <div className="space-y-1 pb-4">
                             <div className="flex items-center gap-2">
-                              <h4 className="font-semibold">Versión {version.versionNumber}</h4>
+                              <h4 className="font-semibold">
+                                Versión {version.versionNumber}
+                              </h4>
                               <span className="text-xs text-muted-foreground">
                                 {formatDate(version.createdAt)}
                               </span>
@@ -957,15 +998,16 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
                               )}
                             </div>
                             <p className="text-sm text-muted-foreground">
-                              {version.description || "Actualización del documento"}
+                              {version.description ||
+                                "Actualización del documento"}
                             </p>
                           </div>
                         </div>
                       ))}
                       {versions.length > 3 && (
                         <div className="flex justify-center pt-2 border-t">
-                          <Button 
-                            variant="link" 
+                          <Button
+                            variant="link"
                             onClick={() => setShowVersionHistory(true)}
                           >
                             Ver todas las versiones ({versions.length})
@@ -1001,8 +1043,7 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
                         <div
                           key={comment.id}
                           className="flex gap-4 border-b pb-4 last:border-0"
-                        >
-                        </div>
+                        ></div>
                       ))}
                     </div>
                   ) : (
@@ -1065,13 +1106,16 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showCreateVersionDialog} onOpenChange={setShowCreateVersionDialog}>
+      <Dialog
+        open={showCreateVersionDialog}
+        onOpenChange={setShowCreateVersionDialog}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Crear nueva versión</DialogTitle>
             <DialogDescription>
-              Crea un punto de guardado en el historial de este documento para poder 
-              volver a este estado en el futuro si es necesario.
+              Crea un punto de guardado en el historial de este documento para
+              poder volver a este estado en el futuro si es necesario.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -1083,7 +1127,8 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
               className="mt-2 resize-none"
             />
             <p className="text-sm text-muted-foreground mt-2">
-              Una buena descripción te ayudará a identificar rápidamente el propósito de esta versión en el futuro.
+              Una buena descripción te ayudará a identificar rápidamente el
+              propósito de esta versión en el futuro.
             </p>
           </div>
           <DialogFooter className="flex space-x-2 justify-end">
@@ -1097,10 +1142,7 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
             >
               Cancelar
             </Button>
-            <Button
-              onClick={handleCreateVersion}
-              disabled={isCreatingVersion}
-            >
+            <Button onClick={handleCreateVersion} disabled={isCreatingVersion}>
               {isCreatingVersion ? (
                 <>
                   <Loader2 className="size-4 mr-2 animate-spin" />
@@ -1116,6 +1158,14 @@ export function DocumentViewEdit({ id, readOnly = false }: DocumentViewEditProps
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {showShareDialog && (
+        <DocumentShareDialog
+          documentId={id}
+          isOpen={showShareDialog}
+          onClose={() => setShowShareDialog(false)}
+        />
+      )}
     </div>
   );
 }
+

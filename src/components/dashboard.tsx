@@ -20,6 +20,7 @@ import {
   Wand2,
   AlertTriangle,
   Search,
+  Users,
 } from "lucide-react";
 import {
   Card,
@@ -53,6 +54,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getAllDocuments } from "@/services/document-service";
 import { getAllTemplates } from "@/services/template-service";
+import { getSharedWithMeDocuments } from "@/services/document-share-service";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -64,12 +66,14 @@ export default function Dashboard() {
   const [templates, setTemplates] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sharedDocuments, setSharedDocuments] = useState<any[]>([]);
 
   const [stats, setStats] = useState({
     totalDocuments: 0,
     templatesUsed: 0,
     timeSaved: 0,
     aiGeneratedPercent: 0,
+    sharedWithMe: 0, // Nueva estadística
   });
 
   useEffect(() => {
@@ -78,9 +82,14 @@ export default function Dashboard() {
       try {
         const docsData = await getAllDocuments();
         setDocuments(docsData);
+
+        // Cargar documentos compartidos
+        const sharedData = await getSharedWithMeDocuments();
+        setSharedDocuments(sharedData);
+
         const templatesData = await getAllTemplates();
         setTemplates(templatesData);
-        calculateStats(docsData, templatesData);
+        calculateStats(docsData, templatesData, sharedData);
       } catch (err) {
         console.error("Error al cargar datos del dashboard:", err);
         setError("No se pudieron cargar los datos del dashboard");
@@ -92,20 +101,22 @@ export default function Dashboard() {
     loadData();
   }, []);
 
-  const calculateStats = (docs: any[], temps: any[]) => {
+  const calculateStats = (docs: any[], temps: any[], shared: any[]) => {
     const totalDocs = docs.length;
-    //const templatesUsed = docs.filter((doc) => doc.templateId).length;
     const aiGenerated = docs.filter((doc) => doc.aiGenerated).length;
     const aiPercent =
       totalDocs > 0 ? Math.round((aiGenerated / totalDocs) * 100) : 0;
     const timePerDoc = 30; // minutos
     const timeSaved = totalDocs * timePerDoc;
 
+    const totalShared = shared.length;
+
     setStats({
       totalDocuments: totalDocs,
       templatesUsed: temps.length,
       timeSaved: timeSaved,
       aiGeneratedPercent: aiPercent,
+      sharedWithMe: totalShared, // Nueva estadística
     });
   };
 
@@ -322,6 +333,25 @@ export default function Dashboard() {
             </p>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Users className="size-4" />
+              Documentos compartidos contigo
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{stats.sharedWithMe || 0}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {stats.sharedWithMe > 0
+                ? `Último actualizado el ${formatDate(
+                    sharedDocuments[0]?.updatedAt
+                  )}`
+                : "No hay documentos compartidos"}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <Tabs
@@ -496,6 +526,92 @@ export default function Dashboard() {
               ))
             )}
           </div>
+
+          {sharedDocuments.length > 0 && (
+            <div className="mt-8">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold">
+                  Documentos compartidos contigo
+                </h2>
+                <Button
+                  variant="ghost"
+                  className="text-sm"
+                  onClick={() => router.push("/documents/shared")}
+                >
+                  Ver todos
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+                {sharedDocuments.slice(0, 2).map((doc) => (
+                  <Card key={doc.id} className="flex flex-col h-full">
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle className="text-lg">{doc.title}</CardTitle>
+                          <CardDescription>
+                            {doc.type} • Compartido por:{" "}
+                            {doc.sharedBy.name || doc.sharedBy.email}
+                          </CardDescription>
+                        </div>
+                        <Badge className={getStatusColor(doc.status)}>
+                          {doc.status.charAt(0).toUpperCase() +
+                            doc.status.slice(1).replace("_", " ")}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="flex-grow">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Clock className="size-4" />
+                          <span>Actualizado: {formatDate(doc.updatedAt)}</span>
+                        </div>
+
+                        <Badge
+                          variant="outline"
+                          className={
+                            doc.permission === "edit"
+                              ? "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
+                              : "bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400"
+                          }
+                        >
+                          {doc.permission === "edit" ? (
+                            <div className="flex items-center gap-1">
+                              <Edit className="size-3" />
+                              <span>Edición</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1">
+                              <Eye className="size-3" />
+                              <span>Lectura</span>
+                            </div>
+                          )}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="flex justify-between gap-2 pt-3 border-t">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleViewDocument(doc.id)}
+                      >
+                        Ver
+                      </Button>
+                      {doc.permission === "edit" && (
+                        <Button
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => handleEditDocument(doc.id)}
+                        >
+                          Editar
+                        </Button>
+                      )}
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="mt-8">
             <h2 className="text-xl font-semibold mb-4">

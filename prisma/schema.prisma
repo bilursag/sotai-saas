@@ -22,6 +22,8 @@ model User {
   updatedAt     DateTime  @updatedAt
   documents     Document[]
   templates     Template[]
+  ownedSharedDocuments    SharedDocument[] @relation("DocumentOwner")
+  sharedWithMe            SharedDocument[] @relation("SharedWith")
 }
 
 model Document {
@@ -39,6 +41,8 @@ model Document {
   tags        Tag[]
   versions    DocumentVersion[]
   comments    Comment[]
+
+  SharedDocument SharedDocument[]
 }
 
 model DocumentVersion {
@@ -83,4 +87,19 @@ model Comment {
   document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   documentId  String
   user        String
+}
+
+model SharedDocument {
+  id          String   @id @default(cuid())
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId  String
+  owner       User     @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId     String
+  sharedWith  User     @relation("SharedWith", fields: [sharedWithId], references: [id], onDelete: Cascade)
+  sharedWithId String
+  permission  String   @default("view")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([documentId, sharedWithId])
 }

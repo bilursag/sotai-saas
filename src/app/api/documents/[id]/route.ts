@@ -47,13 +47,31 @@ export async function GET(
     }
 
     if (document.userId !== user.id) {
-      return NextResponse.json(
-        { error: "No autorizado para ver este documento" },
-        { status: 403 }
-      );
+      const sharedAccess = await prisma.sharedDocument.findFirst({
+        where: {
+          documentId: params.id,
+          sharedWithId: user.id,
+        },
+      });
+
+      if (!sharedAccess) {
+        return NextResponse.json(
+          { error: "No autorizado para ver este documento" },
+          { status: 403 }
+        );
+      }
+
+      return NextResponse.json({
+        ...document,
+        isShared: true,
+        permission: sharedAccess.permission,
+      });
     }
 
-    return NextResponse.json(document);
+    return NextResponse.json({
+      ...document,
+      isOwner: true,
+    });
   } catch (error) {
     console.error("Error al obtener documento:", error);
     return NextResponse.json(
@@ -103,16 +121,24 @@ export async function PUT(
     }
 
     if (existingDocument.userId !== user.id) {
-      return NextResponse.json(
-        { error: "No autorizado para actualizar este documento" },
-        { status: 403 }
-      );
+      const sharedAccess = await prisma.sharedDocument.findFirst({
+        where: {
+          documentId: params.id,
+          sharedWithId: user.id,
+        },
+      });
+
+      if (!sharedAccess || sharedAccess.permission !== "edit") {
+        return NextResponse.json(
+          { error: "No tienes permiso para editar este documento" },
+          { status: 403 }
+        );
+      }
     }
 
     const { title, description, content, type, status, aiGenerated, tags } =
       await request.json();
 
-    // Actualizar o crear las etiquetas
     let tagObjects = [];
     if (tags && tags.length > 0) {
       tagObjects = await Promise.all(
@@ -209,7 +235,7 @@ export async function DELETE(
 
     if (document.userId !== user.id) {
       return NextResponse.json(
-        { error: "No autorizado para eliminar este documento" },
+        { error: "No tienes permiso para eliminar este documento" },
         { status: 403 }
       );
     }
