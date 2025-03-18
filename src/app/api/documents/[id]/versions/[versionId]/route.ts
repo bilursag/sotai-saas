@@ -1,13 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string; versionId: string } }
-) {
+interface Params {
+  params: { id: string; versionId: string };
+}
+
+export async function GET(request: NextRequest, { params }: Params) {
   try {
     const { userId } = await auth();
 

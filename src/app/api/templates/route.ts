@@ -38,7 +38,6 @@ export async function GET(request: Request) {
   }
 }
 
-// POST: Crear una nueva plantilla (solo para administradores o APIs internas)
 export async function POST(request: Request) {
   try {
     const { userId } = await auth();
@@ -47,7 +46,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // Obtener el id interno del usuario
     const user = await prisma.user.findUnique({
       where: { clerkId: userId },
     });
@@ -59,12 +57,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Aquí podrías añadir una verificación adicional para comprobar si el usuario tiene permisos de administrador
-
     const { title, description, content, category, tags } =
       await request.json();
 
-    // Crear o encontrar las etiquetas
     const tagObjects = [];
     if (tags && tags.length > 0) {
       for (const tagName of tags) {
@@ -83,7 +78,7 @@ export async function POST(request: Request) {
         description,
         content,
         category,
-        userId: user.id, // Enlazar con el usuario que la creó
+        userId: user.id,
         tags: {
           connect: tagObjects,
         },

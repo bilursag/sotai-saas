@@ -1,13 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+interface Params {
+  params: { id: string; shareId: string };
+}
+
+export async function DELETE(request: NextRequest, { params }: Params) {
   try {
     const { userId } = await auth();
 
@@ -39,97 +40,49 @@ export async function POST(
 
     if (document.userId !== user.id) {
       return NextResponse.json(
-        { error: "No tienes permiso para compartir este documento" },
+        {
+          error:
+            "No tienes permiso para modificar los accesos de este documento",
+        },
         { status: 403 }
       );
     }
 
-    const { email, permission = "view" } = await request.json();
-
-    if (!email) {
-      return NextResponse.json(
-        { error: "Se requiere email del usuario para compartir" },
-        { status: 400 }
-      );
-    }
-
-    const targetUser = await prisma.user.findUnique({
-      where: { email },
+    const sharedDocument = await prisma.sharedDocument.findUnique({
+      where: { id: params.shareId },
     });
 
-    if (!targetUser) {
+    if (!sharedDocument) {
       return NextResponse.json(
-        { error: "Usuario destinatario no encontrado" },
+        { error: "Registro de compartir no encontrado" },
         { status: 404 }
       );
     }
 
-    if (targetUser.id === user.id) {
+    if (sharedDocument.documentId !== params.id) {
       return NextResponse.json(
-        { error: "No puedes compartir un documento contigo mismo" },
+        { error: "El ID de compartir no pertenece a este documento" },
         { status: 400 }
       );
     }
 
-    const existingShare = await prisma.sharedDocument.findUnique({
-      where: {
-        documentId_sharedWithId: {
-          documentId: params.id,
-          sharedWithId: targetUser.id,
-        },
-      },
+    await prisma.sharedDocument.delete({
+      where: { id: params.shareId },
     });
 
-    if (existingShare) {
-      const updatedShare = await prisma.sharedDocument.update({
-        where: { id: existingShare.id },
-        data: { permission },
-      });
-
-      return NextResponse.json({
-        message: "Permisos actualizados correctamente",
-        share: updatedShare,
-      });
-    }
-
-    const sharedDocument = await prisma.sharedDocument.create({
-      data: {
-        documentId: params.id,
-        ownerId: user.id,
-        sharedWithId: targetUser.id,
-        permission,
-      },
-      include: {
-        sharedWith: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
+    return NextResponse.json({
+      message: "Acceso compartido revocado correctamente",
     });
-
-    return NextResponse.json(
-      {
-        message: "Documento compartido exitosamente",
-        share: sharedDocument,
-      },
-      { status: 201 }
-    );
   } catch (error) {
-    console.error("Error al compartir documento:", error);
+    console.error("Error al revocar acceso compartido:", error);
     return NextResponse.json(
-      { error: "Error al compartir documento" },
+      { error: "Error al revocar acceso compartido" },
       { status: 500 }
     );
   }
 }
 
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest, { params }: Params) {
   try {
     const { userId } = await auth();
 
@@ -160,27 +113,45 @@ export async function GET(
     }
 
     if (document.userId !== user.id) {
-      const hasAccess = await prisma.sharedDocument.findFirst({
-        where: {
-          documentId: params.id,
-          sharedWithId: user.id,
+      return NextResponse.json(
+        {
+          error:
+            "No tienes permiso para modificar los accesos de este documento",
         },
-      });
-
-      if (!hasAccess) {
-        return NextResponse.json(
-          {
-            error: "No tienes permiso para ver los detalles de este documento",
-          },
-          { status: 403 }
-        );
-      }
+        { status: 403 }
+      );
     }
 
-    const sharedWith = await prisma.sharedDocument.findMany({
-      where: {
-        documentId: params.id,
-      },
+    const sharedDocument = await prisma.sharedDocument.findUnique({
+      where: { id: params.shareId },
+    });
+
+    if (!sharedDocument) {
+      return NextResponse.json(
+        { error: "Registro de compartir no encontrado" },
+        { status: 404 }
+      );
+    }
+
+    if (sharedDocument.documentId !== params.id) {
+      return NextResponse.json(
+        { error: "El ID de compartir no pertenece a este documento" },
+        { status: 400 }
+      );
+    }
+
+    const { permission } = await request.json();
+
+    if (!permission || (permission !== "view" && permission !== "edit")) {
+      return NextResponse.json(
+        { error: "Permiso inválido. Debe ser 'view' o 'edit'" },
+        { status: 400 }
+      );
+    }
+
+    const updatedShare = await prisma.sharedDocument.update({
+      where: { id: params.shareId },
+      data: { permission },
       include: {
         sharedWith: {
           select: {
@@ -192,11 +163,14 @@ export async function GET(
       },
     });
 
-    return NextResponse.json(sharedWith);
+    return NextResponse.json({
+      message: "Permiso actualizado correctamente",
+      share: updatedShare,
+    });
   } catch (error) {
-    console.error("Error al obtener usuarios compartidos:", error);
+    console.error("Error al actualizar permiso:", error);
     return NextResponse.json(
-      { error: "Error al obtener información de compartir" },
+      { error: "Error al actualizar permiso" },
       { status: 500 }
     );
   }

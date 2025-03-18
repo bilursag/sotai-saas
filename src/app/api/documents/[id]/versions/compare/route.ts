@@ -1,14 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { PrismaClient } from "@prisma/client";
-import { diffLines, Change } from "diff"
+import { diffLines, Change } from "diff";
 
 const prisma = new PrismaClient();
 
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+interface Params {
+  params: { id: string };
+}
+
+export async function GET(request: NextRequest, { params }: Params) {
   try {
     const { userId } = await auth();
     const { searchParams } = new URL(request.url);

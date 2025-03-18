@@ -1,13 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string; shareId: string } }
-) {
+interface Params {
+  params: { id: string; shareId: string };
+}
+
+export async function DELETE(request: NextRequest, { params }: Params) {
   try {
     const { userId } = await auth();
 
@@ -81,10 +82,7 @@ export async function DELETE(
   }
 }
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: { id: string; shareId: string } }
-) {
+export async function PATCH(request: NextRequest, { params }: Params) {
   try {
     const { userId } = await auth();
 
@@ -113,7 +111,7 @@ export async function PATCH(
         { status: 404 }
       );
     }
-  
+
     if (document.userId !== user.id) {
       return NextResponse.json(
         {
