@@ -33,6 +33,7 @@
     "clsx": "^2.1.1",
     "cobe": "^0.6.3",
     "diff": "^7.0.0",
+    "dotenv": "^16.4.7",
     "html2pdf.js": "^0.10.3",
     "jspdf": "^3.0.0",
     "jspdf-autotable": "^5.0.2",
