@@ -1,15 +1,15 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export async function POST(
-  request: NextRequest,
-  context: { params: { id: string; versionId: string } }
-) {
+export async function POST(request: NextRequest, context: any) {
   try {
     const { userId } = await auth();
+    const id = context.params.id;
+    const versionId = context.params.versionId;
 
     if (!userId) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -27,7 +27,7 @@ export async function POST(
     }
 
     const document = await prisma.document.findUnique({
-      where: { id: context.params.id },
+      where: { id },
     });
 
     if (!document) {
@@ -46,8 +46,8 @@ export async function POST(
 
     const versionToRestore = await prisma.documentVersion.findUnique({
       where: {
-        id: context.params.versionId,
-        documentId: context.params.id,
+        id: versionId,
+        documentId: id,
       },
     });
 
@@ -59,7 +59,7 @@ export async function POST(
     }
 
     const latestVersion = await prisma.documentVersion.findFirst({
-      where: { documentId: context.params.id },
+      where: { documentId: id },
       orderBy: { versionNumber: "desc" },
     });
 
@@ -69,7 +69,7 @@ export async function POST(
 
     const newVersion = await prisma.documentVersion.create({
       data: {
-        documentId: context.params.id,
+        documentId: id,
         versionNumber: newVersionNumber,
         content: versionToRestore.content,
         description: `Restaurado a versión ${versionToRestore.versionNumber}`,
@@ -78,7 +78,7 @@ export async function POST(
     });
 
     const updatedDocument = await prisma.document.update({
-      where: { id: context.params.id },
+      where: { id },
       data: {
         content: versionToRestore.content,
         updatedAt: new Date(),

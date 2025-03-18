@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { PrismaClient } from "@prisma/client";
@@ -6,10 +7,11 @@ const prisma = new PrismaClient();
 
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: any
 ) {
   try {
     const { userId } = await auth();
+    const id = context.params.id;
 
     if (!userId) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -27,7 +29,7 @@ export async function GET(
     }
 
     const document = await prisma.document.findUnique({
-      where: { id: context.params.id },
+      where: { id },
       include: {
         tags: true,
         versions: {
@@ -49,7 +51,7 @@ export async function GET(
     if (document.userId !== user.id) {
       const sharedAccess = await prisma.sharedDocument.findFirst({
         where: {
-          documentId: context.params.id,
+          documentId: id,
           sharedWithId: user.id,
         },
       });
@@ -81,12 +83,10 @@ export async function GET(
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  context: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest, context: any) {
   try {
     const { userId } = await auth();
+    const id = context.params.id;
 
     if (!userId) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -104,7 +104,7 @@ export async function PUT(
     }
 
     const existingDocument = await prisma.document.findUnique({
-      where: { id: context.params.id },
+      where: { id },
       include: {
         versions: {
           orderBy: { versionNumber: "desc" },
@@ -123,7 +123,7 @@ export async function PUT(
     if (existingDocument.userId !== user.id) {
       const sharedAccess = await prisma.sharedDocument.findFirst({
         where: {
-          documentId: context.params.id,
+          documentId: id,
           sharedWithId: user.id,
         },
       });
@@ -162,7 +162,7 @@ export async function PUT(
     }
 
     const updatedDocument = await prisma.document.update({
-      where: { id: context.params.id },
+      where: { id },
       data: {
         title,
         description,
@@ -200,12 +200,10 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  context: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest, context: any) {
   try {
     const { userId } = await auth();
+    const id = context.params.id;
 
     if (!userId) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -223,7 +221,7 @@ export async function DELETE(
     }
 
     const document = await prisma.document.findUnique({
-      where: { id: context.params.id },
+      where: { id },
     });
 
     if (!document) {
@@ -241,7 +239,7 @@ export async function DELETE(
     }
 
     await prisma.document.delete({
-      where: { id: context.params.id },
+      where: { id },
     });
 
     return NextResponse.json({ message: "Documento eliminado correctamente" });

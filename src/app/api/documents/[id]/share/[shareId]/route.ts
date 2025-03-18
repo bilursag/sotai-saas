@@ -1,15 +1,15 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export async function DELETE(
-  request: NextRequest,
-  context: { params: { id: string; shareId: string } }
-) {
+export async function DELETE(request: NextRequest, context: any) {
   try {
     const { userId } = await auth();
+    const id = context.params.id;
+    const shareId = context.params.shareId;
 
     if (!userId) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -27,7 +27,7 @@ export async function DELETE(
     }
 
     const document = await prisma.document.findUnique({
-      where: { id: context.params.id },
+      where: { id },
     });
 
     if (!document) {
@@ -48,7 +48,7 @@ export async function DELETE(
     }
 
     const sharedDocument = await prisma.sharedDocument.findUnique({
-      where: { id: context.params.shareId },
+      where: { id: shareId },
     });
 
     if (!sharedDocument) {
@@ -58,7 +58,7 @@ export async function DELETE(
       );
     }
 
-    if (sharedDocument.documentId !== context.params.id) {
+    if (sharedDocument.documentId !== id) {
       return NextResponse.json(
         { error: "El ID de compartir no pertenece a este documento" },
         { status: 400 }
@@ -66,7 +66,7 @@ export async function DELETE(
     }
 
     await prisma.sharedDocument.delete({
-      where: { id: context.params.shareId },
+      where: { id: shareId },
     });
 
     return NextResponse.json({
@@ -81,12 +81,11 @@ export async function DELETE(
   }
 }
 
-export async function PATCH(
-  request: NextRequest,
-  context: { params: { id: string; shareId: string } }
-) {
+export async function PATCH(request: NextRequest, context: any) {
   try {
     const { userId } = await auth();
+    const id = context.params.id;
+    const shareId = context.params.shareId;
 
     if (!userId) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -104,7 +103,7 @@ export async function PATCH(
     }
 
     const document = await prisma.document.findUnique({
-      where: { id: context.params.id },
+      where: { id },
     });
 
     if (!document) {
@@ -125,7 +124,7 @@ export async function PATCH(
     }
 
     const sharedDocument = await prisma.sharedDocument.findUnique({
-      where: { id: context.params.shareId },
+      where: { id: shareId },
     });
 
     if (!sharedDocument) {
@@ -135,7 +134,7 @@ export async function PATCH(
       );
     }
 
-    if (sharedDocument.documentId !== context.params.id) {
+    if (sharedDocument.documentId !== id) {
       return NextResponse.json(
         { error: "El ID de compartir no pertenece a este documento" },
         { status: 400 }
@@ -152,7 +151,7 @@ export async function PATCH(
     }
 
     const updatedShare = await prisma.sharedDocument.update({
-      where: { id: context.params.shareId },
+      where: { id: shareId },
       data: { permission },
       include: {
         sharedWith: {

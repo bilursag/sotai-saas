@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { PrismaClient } from "@prisma/client";
@@ -5,12 +6,10 @@ import { diffLines, Change } from "diff";
 
 const prisma = new PrismaClient();
 
-export async function GET(
-  request: NextRequest,
-  context: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, context: any) {
   try {
     const { userId } = await auth();
+    const id = context.params.id;
     const { searchParams } = new URL(request.url);
 
     const versionA = searchParams.get("versionA");
@@ -39,7 +38,7 @@ export async function GET(
     }
 
     const document = await prisma.document.findUnique({
-      where: { id: context.params.id },
+      where: { id },
     });
 
     if (!document) {
@@ -72,10 +71,7 @@ export async function GET(
       );
     }
 
-    if (
-      versionAData.documentId !== context.params.id ||
-      versionBData.documentId !== context.params.id
-    ) {
+    if (versionAData.documentId !== id || versionBData.documentId !== id) {
       return NextResponse.json(
         { error: "Las versiones no pertenecen al documento especificado" },
         { status: 400 }

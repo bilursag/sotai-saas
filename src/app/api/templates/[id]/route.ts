@@ -1,21 +1,18 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export async function GET(
-  request: NextRequest,
-  context: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, context: any) {
   try {
     const { userId } = await auth();
+    const id = context.params.id;
 
     if (!userId) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
-
-    const id = context.params.id;
 
     if (!id) {
       return NextResponse.json(

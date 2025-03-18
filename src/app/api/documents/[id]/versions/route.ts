@@ -1,15 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export async function GET(
-  request: NextRequest,
-  context: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, context: any) {
   try {
     const { userId } = await auth();
+    const id = context.params.id;
 
     if (!userId) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -27,7 +26,7 @@ export async function GET(
     }
 
     const document = await prisma.document.findUnique({
-      where: { id: context.params.id },
+      where: { id },
     });
 
     if (!document) {
@@ -40,7 +39,7 @@ export async function GET(
     if (document.userId !== user.id) {
       const sharedAccess = await prisma.sharedDocument.findFirst({
         where: {
-          documentId: context.params.id,
+          documentId: id,
           sharedWithId: user.id,
         },
       });
@@ -57,7 +56,7 @@ export async function GET(
 
     const versions = await prisma.documentVersion.findMany({
       where: {
-        documentId: context.params.id,
+        documentId: id,
       },
       orderBy: {
         versionNumber: "desc",

@@ -1,15 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export async function POST(
-  request: NextRequest,
-  context: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, context: any) {
   try {
     const { userId } = await auth();
+    const id = context.params.id;
 
     if (!userId) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -27,7 +26,7 @@ export async function POST(
     }
 
     const document = await prisma.document.findUnique({
-      where: { id: context.params.id },
+      where: { id },
     });
 
     if (!document) {
@@ -74,7 +73,7 @@ export async function POST(
     const existingShare = await prisma.sharedDocument.findUnique({
       where: {
         documentId_sharedWithId: {
-          documentId: context.params.id,
+          documentId: id,
           sharedWithId: targetUser.id,
         },
       },
@@ -94,7 +93,7 @@ export async function POST(
 
     const sharedDocument = await prisma.sharedDocument.create({
       data: {
-        documentId: context.params.id,
+        documentId: id,
         ownerId: user.id,
         sharedWithId: targetUser.id,
         permission,
@@ -126,12 +125,10 @@ export async function POST(
   }
 }
 
-export async function GET(
-  request: NextRequest,
-  context: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, context: any) {
   try {
     const { userId } = await auth();
+    const id = context.params.id;
 
     if (!userId) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -149,7 +146,7 @@ export async function GET(
     }
 
     const document = await prisma.document.findUnique({
-      where: { id: context.params.id },
+      where: { id },
     });
 
     if (!document) {
@@ -162,7 +159,7 @@ export async function GET(
     if (document.userId !== user.id) {
       const hasAccess = await prisma.sharedDocument.findFirst({
         where: {
-          documentId: context.params.id,
+          documentId: id,
           sharedWithId: user.id,
         },
       });
@@ -179,7 +176,7 @@ export async function GET(
 
     const sharedWith = await prisma.sharedDocument.findMany({
       where: {
-        documentId: context.params.id,
+        documentId: id,
       },
       include: {
         sharedWith: {
