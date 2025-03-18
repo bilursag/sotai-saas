@@ -5,11 +5,10 @@ import { diffLines, Change } from "diff";
 
 const prisma = new PrismaClient();
 
-interface Params {
-  params: { id: string };
-}
-
-export async function GET(request: NextRequest, { params }: Params) {
+export async function GET(
+  request: NextRequest,
+  context: { params: { id: string } }
+) {
   try {
     const { userId } = await auth();
     const { searchParams } = new URL(request.url);
@@ -40,7 +39,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     }
 
     const document = await prisma.document.findUnique({
-      where: { id: params.id },
+      where: { id: context.params.id },
     });
 
     if (!document) {
@@ -74,8 +73,8 @@ export async function GET(request: NextRequest, { params }: Params) {
     }
 
     if (
-      versionAData.documentId !== params.id ||
-      versionBData.documentId !== params.id
+      versionAData.documentId !== context.params.id ||
+      versionBData.documentId !== context.params.id
     ) {
       return NextResponse.json(
         { error: "Las versiones no pertenecen al documento especificado" },

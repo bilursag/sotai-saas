@@ -4,11 +4,10 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-interface Params {
-  params: { id: string; versionId: string };
-}
-
-export async function GET(request: NextRequest, { params }: Params) {
+export async function GET(
+  request: NextRequest,
+  context: { params: { id: string; versionId: string } }
+) {
   try {
     const { userId } = await auth();
 
@@ -28,7 +27,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     }
 
     const document = await prisma.document.findUnique({
-      where: { id: params.id },
+      where: { id: context.params.id },
     });
 
     if (!document) {
@@ -47,8 +46,8 @@ export async function GET(request: NextRequest, { params }: Params) {
 
     const version = await prisma.documentVersion.findUnique({
       where: {
-        id: params.versionId,
-        documentId: params.id,
+        id: context.params.versionId,
+        documentId: context.params.id,
       },
     });
 

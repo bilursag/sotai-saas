@@ -4,11 +4,10 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-interface Params {
-  params: { id: string };
-}
-
-export async function GET(request: NextRequest, { params }: Params) {
+export async function GET(
+  request: NextRequest,
+  context: { params: { id: string } }
+) {
   try {
     const { userId } = await auth();
 
@@ -28,7 +27,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     }
 
     const document = await prisma.document.findUnique({
-      where: { id: params.id },
+      where: { id: context.params.id },
     });
 
     if (!document) {
@@ -41,7 +40,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     if (document.userId !== user.id) {
       const sharedAccess = await prisma.sharedDocument.findFirst({
         where: {
-          documentId: params.id,
+          documentId: context.params.id,
           sharedWithId: user.id,
         },
       });
@@ -58,7 +57,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 
     const versions = await prisma.documentVersion.findMany({
       where: {
-        documentId: params.id,
+        documentId: context.params.id,
       },
       orderBy: {
         versionNumber: "desc",

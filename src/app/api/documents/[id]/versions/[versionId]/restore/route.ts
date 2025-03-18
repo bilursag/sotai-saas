@@ -4,11 +4,10 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-interface Params {
-  params: { id: string; versionId: string };
-}
-
-export async function POST(request: NextRequest, { params }: Params) {
+export async function POST(
+  request: NextRequest,
+  context: { params: { id: string; versionId: string } }
+) {
   try {
     const { userId } = await auth();
 
@@ -28,7 +27,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     }
 
     const document = await prisma.document.findUnique({
-      where: { id: params.id },
+      where: { id: context.params.id },
     });
 
     if (!document) {
@@ -47,8 +46,8 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     const versionToRestore = await prisma.documentVersion.findUnique({
       where: {
-        id: params.versionId,
-        documentId: params.id,
+        id: context.params.versionId,
+        documentId: context.params.id,
       },
     });
 
@@ -60,7 +59,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     }
 
     const latestVersion = await prisma.documentVersion.findFirst({
-      where: { documentId: params.id },
+      where: { documentId: context.params.id },
       orderBy: { versionNumber: "desc" },
     });
 
@@ -70,7 +69,7 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     const newVersion = await prisma.documentVersion.create({
       data: {
-        documentId: params.id,
+        documentId: context.params.id,
         versionNumber: newVersionNumber,
         content: versionToRestore.content,
         description: `Restaurado a versión ${versionToRestore.versionNumber}`,
@@ -79,7 +78,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     });
 
     const updatedDocument = await prisma.document.update({
-      where: { id: params.id },
+      where: { id: context.params.id },
       data: {
         content: versionToRestore.content,
         updatedAt: new Date(),

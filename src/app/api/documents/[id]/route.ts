@@ -4,11 +4,10 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-interface Params {
-  params: { id: string };
-}
-
-export async function GET(request: NextRequest, { params }: Params) {
+export async function GET(
+  request: NextRequest,
+  context: { params: { id: string } }
+) {
   try {
     const { userId } = await auth();
 
@@ -28,7 +27,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     }
 
     const document = await prisma.document.findUnique({
-      where: { id: params.id },
+      where: { id: context.params.id },
       include: {
         tags: true,
         versions: {
@@ -50,7 +49,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     if (document.userId !== user.id) {
       const sharedAccess = await prisma.sharedDocument.findFirst({
         where: {
-          documentId: params.id,
+          documentId: context.params.id,
           sharedWithId: user.id,
         },
       });
@@ -82,7 +81,10 @@ export async function GET(request: NextRequest, { params }: Params) {
   }
 }
 
-export async function PUT(request: NextRequest, { params }: Params) {
+export async function PUT(
+  request: NextRequest,
+  context: { params: { id: string } }
+) {
   try {
     const { userId } = await auth();
 
@@ -102,7 +104,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
     }
 
     const existingDocument = await prisma.document.findUnique({
-      where: { id: params.id },
+      where: { id: context.params.id },
       include: {
         versions: {
           orderBy: { versionNumber: "desc" },
@@ -121,7 +123,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
     if (existingDocument.userId !== user.id) {
       const sharedAccess = await prisma.sharedDocument.findFirst({
         where: {
-          documentId: params.id,
+          documentId: context.params.id,
           sharedWithId: user.id,
         },
       });
@@ -160,7 +162,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
     }
 
     const updatedDocument = await prisma.document.update({
-      where: { id: params.id },
+      where: { id: context.params.id },
       data: {
         title,
         description,
@@ -198,7 +200,10 @@ export async function PUT(request: NextRequest, { params }: Params) {
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: Params) {
+export async function DELETE(
+  request: NextRequest,
+  context: { params: { id: string } }
+) {
   try {
     const { userId } = await auth();
 
@@ -218,7 +223,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     }
 
     const document = await prisma.document.findUnique({
-      where: { id: params.id },
+      where: { id: context.params.id },
     });
 
     if (!document) {
@@ -236,7 +241,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     }
 
     await prisma.document.delete({
-      where: { id: params.id },
+      where: { id: context.params.id },
     });
 
     return NextResponse.json({ message: "Documento eliminado correctamente" });

@@ -4,11 +4,10 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-interface Params {
-  params: { id: string };
-}
-
-export async function GET(request: NextRequest, { params }: Params) {
+export async function GET(
+  request: NextRequest,
+  context: { params: { id: string } }
+) {
   try {
     const { userId } = await auth();
 
@@ -16,7 +15,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const id = params.id;
+    const id = context.params.id;
 
     if (!id) {
       return NextResponse.json(
