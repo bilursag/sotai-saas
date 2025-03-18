@@ -1,8 +1,7 @@
-// src/services/export-service.ts
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
-// Extendemos jsPDF para incluir autoTable
 declare module "jspdf" {
   interface jsPDF {
     autoTable: (options: any) => jsPDF;
@@ -22,10 +21,7 @@ interface DocumentInfo {
 }
 
 export const exportToPdf = (document: DocumentInfo) => {
-  // Creamos un nuevo documento PDF
   const pdf = new jsPDF();
-
-  // Función para formatear fechas
   const formatDate = (dateString?: string) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString("es-ES", {
@@ -35,12 +31,10 @@ export const exportToPdf = (document: DocumentInfo) => {
     });
   };
 
-  // Función para manejar textos largos y evitar que se salgan de la página
   const splitTextToSize = (text: string, maxWidth: number) => {
     return pdf.splitTextToSize(text, maxWidth);
   };
 
-  // Configuramos fuentes y estilos
   const titleFont = "helvetica";
   const bodyFont = "helvetica";
   const textColor = "#000000";
@@ -51,21 +45,17 @@ export const exportToPdf = (document: DocumentInfo) => {
   const margin = 20;
   const contentWidth = pageWidth - margin * 2;
 
-  // Añadimos el título
   pdf.setFont(titleFont, "bold");
   pdf.setTextColor(textColor);
   pdf.setFontSize(titleSize);
   pdf.text(document.title, margin, 20);
 
-  // Añadimos información general
   pdf.setFont(bodyFont, "normal");
   pdf.setFontSize(bodySize);
 
-  // Tipo y estado
   pdf.text(`Tipo: ${document.type}`, margin, 30);
   pdf.text(`Estado: ${document.status}`, margin, 35);
 
-  // Fechas
   pdf.text(`Creado: ${formatDate(document.createdAt)}`, margin, 40);
   pdf.text(
     `Última modificación: ${formatDate(document.updatedAt)}`,
@@ -73,12 +63,10 @@ export const exportToPdf = (document: DocumentInfo) => {
     45
   );
 
-  // Autor si está disponible
   if (document.author) {
     pdf.text(`Autor: ${document.author}`, margin, 50);
   }
 
-  // Etiquetas
   if (document.tags && document.tags.length > 0) {
     const tagsText =
       "Etiquetas: " +
@@ -90,7 +78,6 @@ export const exportToPdf = (document: DocumentInfo) => {
     pdf.text(wrappedTags, margin, 55);
   }
 
-  // Descripción
   if (document.description) {
     const descriptionTitle = "Descripción:";
     pdf.setFont(bodyFont, "bold");
@@ -104,7 +91,6 @@ export const exportToPdf = (document: DocumentInfo) => {
     pdf.text(wrappedDescription, margin, 70);
   }
 
-  // Añadimos el contenido principal
   pdf.setFont(bodyFont, "bold");
   pdf.setFontSize(subtitleSize);
   pdf.text("CONTENIDO DEL DOCUMENTO", margin, 85);
@@ -112,13 +98,11 @@ export const exportToPdf = (document: DocumentInfo) => {
   pdf.setFont(bodyFont, "normal");
   pdf.setFontSize(bodySize);
 
-  // Dividimos el contenido en párrafos y lo añadimos al PDF
   const contentY = 95;
   const wrappedContent = splitTextToSize(document.content, contentWidth);
 
   pdf.text(wrappedContent, margin, contentY);
 
-  // Añadimos pie de página con fecha de exportación
   const exportDate = new Date().toLocaleDateString("es-ES", {
     day: "2-digit",
     month: "long",
@@ -139,7 +123,6 @@ export const exportToPdf = (document: DocumentInfo) => {
     );
   }
 
-  // Guardamos el archivo con el nombre del documento
   pdf.save(`${document.title.replace(/\s+/g, "_")}.pdf`);
 
   return true;

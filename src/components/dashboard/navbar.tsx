@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { ThemeSwitcher } from "../theme-switcher";
 import { UserButton } from "@clerk/nextjs";
@@ -18,7 +17,6 @@ export default function DashboardNavbar({
   onMenuClick,
   menuOpen = false,
 }: DashboardNavbarProps) {
-  const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
@@ -42,7 +40,6 @@ export default function DashboardNavbar({
     >
       <div className="container mx-auto max-w-full px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
-          {/* Botón de menú para móvil */}
           {showMenuButton && (
             <Button
               variant="ghost"
@@ -54,10 +51,8 @@ export default function DashboardNavbar({
             </Button>
           )}
 
-          {/* Espacio flexible para mantener el botón a la izquierda y los controles a la derecha */}
           <div className={showMenuButton ? "flex-1" : ""}></div>
 
-          {/* Elementos de la derecha */}
           <div className="flex items-center gap-3">
             <ThemeSwitcher />
 
