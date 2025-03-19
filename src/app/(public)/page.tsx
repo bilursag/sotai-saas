@@ -756,12 +756,12 @@ export default function Home() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">
-                      Email
+                      Correo electrónico
                     </label>
                     <input
                       type="email"
                       className="w-full p-2 border border-gray-300 dark:border-zinc-700 rounded-md bg-transparent"
-                      placeholder="tu@email.com"
+                      placeholder="tu@correoelectronico.com"
                     />
                   </div>
                   <div>

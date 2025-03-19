@@ -9,6 +9,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "./ui/input";
 
 const navigation = {
   soluciones: [
@@ -63,11 +64,7 @@ export default function Footer() {
             </div>
             <div className="flex-grow max-w-md">
               <div className="flex flex-col sm:flex-row gap-3">
-                <input
-                  type="email"
-                  placeholder="Tu correo electrónico"
-                  className="flex-grow py-3 px-4 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800"
-                />
+                <Input placeholder="Tu correo electrónico" />
                 <Button>Suscribirse</Button>
               </div>
               <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
