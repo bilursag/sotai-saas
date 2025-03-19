@@ -6,7 +6,6 @@ import {
   Linkedin,
   Mail,
   PhoneCall,
-  MapPin,
   ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
