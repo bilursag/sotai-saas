@@ -39,7 +39,7 @@ export default function NotFound() {
                     Volver al inicio
                   </Button>
                 </Link>
-                <Link href="/best-practices">
+                <Link href="/coming-soon">
                   <Button size="lg" variant="outline">
                     <FileText className="mr-2 size-4" />
                     Explorar mejores prácticas
@@ -121,7 +121,7 @@ export default function NotFound() {
                 </div>
               </Link>
 
-              <Link href="/best-practices">
+              <Link href="/coming-soon">
                 <div className="bg-white dark:bg-zinc-800 p-6 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100 dark:border-zinc-700 h-full group">
                   <h3 className="text-lg font-bold mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400">
                     Mejores prácticas
@@ -136,7 +136,7 @@ export default function NotFound() {
                 </div>
               </Link>
 
-              <Link href="/tutorials">
+              <Link href="/coming-soon">
                 <div className="bg-white dark:bg-zinc-800 p-6 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100 dark:border-zinc-700 h-full group">
                   <h3 className="text-lg font-bold mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400">
                     Tutoriales

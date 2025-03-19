@@ -689,7 +689,7 @@ export default function Home() {
                 Aprende paso a paso con nuestros tutoriales detallados sobre
                 funciones específicas.
               </p>
-              <Link href="/tutorials">
+              <Link href="/coming-soon">
                 <Button variant="outline" className="w-full">
                   Ver tutoriales
                 </Button>
@@ -705,7 +705,7 @@ export default function Home() {
                 Consejos y técnicas para sacar el máximo provecho a nuestra
                 plataforma.
               </p>
-              <Link href="/best-practices">
+              <Link href="/coming-soon">
                 <Button variant="outline" className="w-full">
                   Ver consejos
                 </Button>

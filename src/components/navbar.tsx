@@ -25,8 +25,8 @@ import { Button } from "@/components/ui/button";
 
 const navigation = [
   { name: "Inicio", href: "/", icon: Coffee },
-  { name: "Tutoriales", href: "/tutorials", icon: Book },
-  { name: "Mejores Prácticas", href: "/best-practices", icon: Award },
+  { name: "Tutoriales", href: "/coming-soon", icon: Book },
+  { name: "Mejores Prácticas", href: "/coming-soon", icon: Award },
   { name: "Guía del Usuario", href: "/user-guide", icon: Sparkles },
 ];
 

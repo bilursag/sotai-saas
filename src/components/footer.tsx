@@ -21,8 +21,8 @@ const navigation = {
   soporte: [
     { name: "Centro de Ayuda", href: "#" },
     { name: "Documentación", href: "/user-guide" },
-    { name: "Tutoriales", href: "/tutorials" },
-    { name: "Mejores Prácticas", href: "/best-practices" },
+    { name: "Tutoriales", href: "/coming-soon" },
+    { name: "Mejores Prácticas", href: "/coming-soon" },
     { name: "Preguntas Frecuentes", href: "#" },
   ],
   empresa: [
