@@ -105,11 +105,6 @@ export function Sidebar({ defaultCollapsed = false, onToggle }: SidebarProps) {
       href: "/templates",
       icon: FolderOpen,
     },
-    {
-      title: "Asistente IA",
-      href: "/assistant",
-      icon: Wand2,
-    },
   ];
 
   const createNavItems = [
