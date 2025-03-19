@@ -705,7 +705,7 @@ export default function Home() {
                 Consejos y técnicas para sacar el máximo provecho a nuestra
                 plataforma.
               </p>
-              <Link href="/mejores-practicas">
+              <Link href="/best-practices">
                 <Button variant="outline" className="w-full">
                   Ver consejos
                 </Button>
