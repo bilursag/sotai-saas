@@ -340,7 +340,7 @@ export default function Home() {
                 Ideal para abogados y profesionales independientes
               </p>
               <div className="mb-6">
-                <span className="text-4xl font-bold">$29.990</span>
+                <span className="text-4xl font-bold">$19.990</span>
                 <span className="text-gray-500 dark:text-gray-400">/mes</span>
               </div>
               <ul className="space-y-3 mb-8">
@@ -382,7 +382,7 @@ export default function Home() {
                 Para despachos y equipos jurídicos
               </p>
               <div className="mb-6">
-                <span className="text-4xl font-bold">$89.990</span>
+                <span className="text-4xl font-bold">$49.990</span>
                 <span className="text-gray-500 dark:text-gray-400">/mes</span>
               </div>
               <ul className="space-y-3 mb-8">
